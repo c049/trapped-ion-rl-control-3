@@ -1,5 +1,6 @@
-# Model-Free Quantum Control with Reinforcement Learning
-Fork of [v-sivak/quantum-control-rl](https://github.com/v-sivak/quantum-control-rl); in this version the server (RL agent) and client (experiment or sim) communicate over tcpip.  This may be a bottleneck for some applications, but it's very convenient for others.
+# Trapped-Ion RL Control
+
+This repository extends the model-free quantum control framework with a trapped-ion bosonic-mode environment and cat-state targets.
 
 This code was used in the following publications:
 
@@ -33,6 +34,5 @@ The qcrl-server conda environment has been tested to work with CUDA v11.0 and cu
 ## Running the examples
 
 Open two consoles, activate qcrl-server in both, and cd into the directory of the example you want to run in both (pi_pulse or pi_pulse_oct_style).  In one console run *_training_server.py, and in the other run *_client.py.
-
 
 
