@@ -19,12 +19,15 @@ from quantum_control_rl_server.h5log import h5log
 root_dir = os.getcwd()
 host_ip = "127.0.0.1"
 
+FAST_SMOKE = os.environ.get("FAST_SMOKE", "0") == "1"
+
 num_epochs = 300
 train_batch_size = 160
 
 do_evaluation = True
 eval_interval = 20
 eval_batch_size = 5
+num_policy_updates = 20
 
 learn_residuals = True
 save_tf_style = False
@@ -66,6 +69,13 @@ to_learn = {
     "amp_r": False,
     "amp_b": False,
 }
+
+if FAST_SMOKE:
+    num_epochs = 4
+    train_batch_size = 2
+    eval_interval = 2
+    eval_batch_size = 2
+    num_policy_updates = 2
 
 rl_params = {
     "num_epochs": num_epochs,
@@ -138,7 +148,7 @@ PPO.train_eval(
     discount_factor=1.0,
     lr=3.0e-4,
     lr_schedule=None,
-    num_policy_updates=20,
+    num_policy_updates=num_policy_updates,
     initial_adaptive_kl_beta=0.0,
     kl_cutoff_factor=0,
     importance_ratio_clipping=0.2,

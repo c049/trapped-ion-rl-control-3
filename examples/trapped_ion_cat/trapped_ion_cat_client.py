@@ -6,9 +6,13 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 
+if os.environ.get("DQ_FORCE_GPU", "0") == "1":
+    os.environ.setdefault("JAX_PLATFORM_NAME", "gpu")
+
 from quantum_control_rl_server.remote_env_tools import Client
 from trapped_ion_cat_sim_function import (
     trapped_ion_cat_sim,
+    trapped_ion_cat_sim_batch,
     characteristic_grid,
     prepare_characteristic_distribution,
 )
@@ -24,6 +28,8 @@ client_socket = Client()
 (host, port) = ("127.0.0.1", 5555)
 client_socket.connect((host, port))
 
+FAST_SMOKE = os.environ.get("FAST_SMOKE", "0") == "1"
+
 N_STEPS = 120
 N_SEGMENTS = 60
 SEG_LEN = N_STEPS // N_SEGMENTS
@@ -37,6 +43,21 @@ TRAIN_POINTS_STAGE2 = 160
 TRAIN_POINTS_STAGE3 = 240
 TRAIN_STAGE1_EPOCHS = 200
 TRAIN_STAGE2_EPOCHS = 400
+
+CHAR_GRID_SIZE = 41
+FINAL_GRID_SIZE = 61
+PLOT_GRID_SIZE = 121
+
+if FAST_SMOKE:
+    N_BOSON = 12
+    TRAIN_POINTS_STAGE1 = 20
+    TRAIN_POINTS_STAGE2 = 40
+    TRAIN_POINTS_STAGE3 = 60
+    TRAIN_STAGE1_EPOCHS = 2
+    TRAIN_STAGE2_EPOCHS = 4
+    CHAR_GRID_SIZE = 21
+    FINAL_GRID_SIZE = 31
+    PLOT_GRID_SIZE = 61
 
 SMOOTH_LAMBDA = 0.0
 SMOOTH_PHI_WEIGHT = 1.0
@@ -52,7 +73,7 @@ CHAR_POINTS, CHAR_TARGET, CHAR_WEIGHTS, CHAR_AREA = prepare_characteristic_distr
     alpha_cat=ALPHA_CAT,
     n_boson=N_BOSON,
     extent=SAMPLE_EXTENT,
-    grid_size=41,
+    grid_size=CHAR_GRID_SIZE,
     cat_parity="even",
     mix_uniform=CHAR_UNIFORM_MIX,
 )
@@ -60,19 +81,20 @@ FINAL_POINTS, FINAL_TARGET, FINAL_WEIGHTS, FINAL_AREA = prepare_characteristic_d
     alpha_cat=ALPHA_CAT,
     n_boson=N_BOSON,
     extent=SAMPLE_EXTENT,
-    grid_size=61,
+    grid_size=FINAL_GRID_SIZE,
     cat_parity="even",
     mix_uniform=CHAR_UNIFORM_MIX,
 )
 
 
 def _smoothness_penalty(phi_r, phi_b, amp_r, amp_b):
-    dphi_r = np.diff(phi_r)
-    dphi_b = np.diff(phi_b)
-    damp_r = np.diff(amp_r)
-    damp_b = np.diff(amp_b)
-    phi_pen = 0.5 * (np.mean(dphi_r ** 2) + np.mean(dphi_b ** 2))
-    amp_pen = 0.5 * (np.mean(damp_r ** 2) + np.mean(damp_b ** 2))
+    axis = 1 if np.ndim(phi_r) > 1 else 0
+    dphi_r = np.diff(phi_r, axis=axis)
+    dphi_b = np.diff(phi_b, axis=axis)
+    damp_r = np.diff(amp_r, axis=axis)
+    damp_b = np.diff(amp_b, axis=axis)
+    phi_pen = 0.5 * (np.mean(dphi_r ** 2, axis=axis) + np.mean(dphi_b ** 2, axis=axis))
+    amp_pen = 0.5 * (np.mean(damp_r ** 2, axis=axis) + np.mean(damp_b ** 2, axis=axis))
     return SMOOTH_PHI_WEIGHT * phi_pen + SMOOTH_AMP_WEIGHT * amp_pen
 
 
@@ -90,6 +112,7 @@ def _select_train_points(epoch, rng):
     if epoch < TRAIN_STAGE2_EPOCHS:
         return _sample_characteristic_points(rng, TRAIN_POINTS_STAGE2)
     return _sample_characteristic_points(rng, TRAIN_POINTS_STAGE3)
+
 
 done = False
 eval_log_path = os.path.join(os.getcwd(), "eval_fidelity.csv")
@@ -147,7 +170,7 @@ while not done:
         logger.info("Final fidelity %.6f", final_fidelity)
         logger.info("Saved final fidelity to %s", fidelity_path)
 
-        grid = np.linspace(-SAMPLE_EXTENT, SAMPLE_EXTENT, 121)
+        grid = np.linspace(-SAMPLE_EXTENT, SAMPLE_EXTENT, PLOT_GRID_SIZE)
         chi_target = characteristic_grid(rho_target, grid, grid)
         chi_final = characteristic_grid(rho_final, grid, grid)
 
@@ -209,58 +232,49 @@ while not done:
         n_shots = N_SHOTS_TRAIN
         sample_points, target_values, sample_weights = _select_train_points(epoch, rng)
 
-    reward_data = np.zeros((batch_size))
-    fidelity_data = None
     if epoch_type == "evaluation":
-        fidelity_data = np.zeros((batch_size))
-    for ii in range(batch_size):
-        if epoch_type == "evaluation":
-            reward, fidelity, _, _ = trapped_ion_cat_sim(
-                phi_r[ii],
-                phi_b[ii],
-                amp_r=amp_r[ii],
-                amp_b=amp_b[ii],
-                n_boson=N_BOSON,
-                omega=2 * np.pi * 0.002,
-                t_step=T_STEP,
-                alpha_cat=ALPHA_CAT,
-                cat_parity="even",
-                sample_points=sample_points,
-                target_values=target_values,
-                sample_weights=sample_weights,
-                sample_area=CHAR_AREA,
-                reward_scale=REWARD_SCALE,
-                reward_clip=REWARD_CLIP,
-                n_shots=n_shots,
-                return_details=True,
-                reward_mode="characteristic",
-            )
-            reward_data[ii] = reward
-            fidelity_data[ii] = fidelity
-        else:
-            reward_data[ii] = trapped_ion_cat_sim(
-                phi_r[ii],
-                phi_b[ii],
-                amp_r=amp_r[ii],
-                amp_b=amp_b[ii],
-                n_boson=N_BOSON,
-                omega=2 * np.pi * 0.002,
-                t_step=T_STEP,
-                alpha_cat=ALPHA_CAT,
-                cat_parity="even",
-                sample_points=sample_points,
-                target_values=target_values,
-                sample_weights=sample_weights,
-                sample_area=CHAR_AREA,
-                reward_scale=REWARD_SCALE,
-                reward_clip=REWARD_CLIP,
-                n_shots=n_shots,
-                reward_mode="characteristic",
-            )
-            smooth_pen = _smoothness_penalty(
-                phi_r[ii], phi_b[ii], amp_r[ii], amp_b[ii]
-            )
-            reward_data[ii] -= SMOOTH_LAMBDA * smooth_pen
+        reward_data, fidelity_data, _, _ = trapped_ion_cat_sim_batch(
+            phi_r,
+            phi_b,
+            amp_r=amp_r,
+            amp_b=amp_b,
+            n_boson=N_BOSON,
+            omega=2 * np.pi * 0.002,
+            t_step=T_STEP,
+            alpha_cat=ALPHA_CAT,
+            cat_parity="even",
+            sample_points=sample_points,
+            target_values=target_values,
+            sample_weights=sample_weights,
+            sample_area=CHAR_AREA,
+            reward_scale=REWARD_SCALE,
+            reward_clip=REWARD_CLIP,
+            n_shots=n_shots,
+            return_details=True,
+            reward_mode="characteristic",
+        )
+    else:
+        reward_data = trapped_ion_cat_sim_batch(
+            phi_r,
+            phi_b,
+            amp_r=amp_r,
+            amp_b=amp_b,
+            n_boson=N_BOSON,
+            omega=2 * np.pi * 0.002,
+            t_step=T_STEP,
+            alpha_cat=ALPHA_CAT,
+            cat_parity="even",
+            sample_points=sample_points,
+            target_values=target_values,
+            sample_weights=sample_weights,
+            sample_area=CHAR_AREA,
+            reward_scale=REWARD_SCALE,
+            reward_clip=REWARD_CLIP,
+            n_shots=n_shots,
+            reward_mode="characteristic",
+        )
+        smooth_pen = _smoothness_penalty(phi_r, phi_b, amp_r, amp_b)
+        reward_data = reward_data - SMOOTH_LAMBDA * smooth_pen
 
     R = np.mean(reward_data)
     std_R = np.std(reward_data)
