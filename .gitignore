@@ -131,3 +131,9 @@ logdir/
 # Keep example outputs for this repo
 !examples/trapped_ion_cat/outputs/
 !examples/trapped_ion_cat/outputs/**
+
+*.pdf
+
+.venv*/
+Miniconda3-latest-MacOSX-arm64.sh
+examples/trapped_ion_cat/outputs/logs/

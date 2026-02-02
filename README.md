@@ -2,7 +2,7 @@
 
 This project focuses on **model-free reinforcement learning for trapped-ion quantum control**. The RL agent (PPO/TF-Agents) learns red/blue sideband pulse sequences to prepare **bosonic cat states** of the motional mode. Rewards are computed from sampled **Wigner-function parity measurements**, while **fidelity** is tracked for evaluation and final reporting.
 
-The implementation aligns with the included reference papers (model-free RL control and trapped-ion bosonic-state preparation) and with our meeting notes that emphasize: measurement-based reward design, comparing reward vs fidelity, and visualizing the final Wigner function and pulse sequences.
+The implementation follows a measurement-based reward design, compares reward against fidelity during evaluation, and visualizes the final phase-space distributions and pulse sequences.
 
 ## Requirements
 The project was tested with the conda environment defined in `qcrl-server-tf240.yml` (TensorFlow 2.4.0 and TF-Agents 0.6.0). CPU-only setups work, but training may be slower.
@@ -86,8 +86,6 @@ Repo support files:
 - `requirements.txt`: Python package list (if you prefer pip over conda).
 - `qcrl-server-tf240.yml`: conda environment specification used in this project.
 
-## Reference PDFs in this repo
-Two background papers are included in the repo root (model-free RL control; trapped-ion bosonic logical-state preparation), along with two meeting transcripts (Nov 14, 2025 and Jan 20, 2026) that define the project goal and evaluation focus (Wigner-based rewards, fidelity comparison, and visual outputs).
 
 ## License
 See `LICENSE`.
