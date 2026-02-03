@@ -15,6 +15,7 @@ from trapped_ion_cat_sim_function import (
     trapped_ion_cat_sim_batch,
     characteristic_grid,
     prepare_characteristic_distribution,
+    characteristic_norm,
 )
 
 logger = logging.getLogger("RL")
@@ -38,9 +39,9 @@ SAMPLE_EXTENT = 3.0
 N_BOSON = 30
 ALPHA_CAT = 2.0
 
-TRAIN_POINTS_STAGE1 = 80
-TRAIN_POINTS_STAGE2 = 160
-TRAIN_POINTS_STAGE3 = 240
+TRAIN_POINTS_STAGE1 = 120
+TRAIN_POINTS_STAGE2 = 240
+TRAIN_POINTS_STAGE3 = 480
 TRAIN_STAGE1_EPOCHS = 200
 TRAIN_STAGE2_EPOCHS = 400
 
@@ -62,13 +63,13 @@ if FAST_SMOKE:
 SMOOTH_LAMBDA = 0.0
 SMOOTH_PHI_WEIGHT = 1.0
 SMOOTH_AMP_WEIGHT = 0.2
-REWARD_SCALE = 30.0
+REWARD_SCALE = 1.0
 REWARD_CLIP = None
 
 N_SHOTS_TRAIN = 0
 N_SHOTS_EVAL = 0
 
-CHAR_UNIFORM_MIX = 0.1
+CHAR_UNIFORM_MIX = 0.0
 CHAR_POINTS, CHAR_TARGET, CHAR_WEIGHTS, CHAR_AREA = prepare_characteristic_distribution(
     alpha_cat=ALPHA_CAT,
     n_boson=N_BOSON,
@@ -85,6 +86,15 @@ FINAL_POINTS, FINAL_TARGET, FINAL_WEIGHTS, FINAL_AREA = prepare_characteristic_d
     cat_parity="even",
     mix_uniform=CHAR_UNIFORM_MIX,
 )
+CHAR_NORM = characteristic_norm(CHAR_TARGET, CHAR_AREA)
+FINAL_NORM = characteristic_norm(FINAL_TARGET, FINAL_AREA)
+
+TOPK_COUNT = min(TRAIN_POINTS_STAGE1, len(CHAR_POINTS))
+topk_idx = np.argsort(np.abs(CHAR_TARGET))[-TOPK_COUNT:]
+TOPK_POINTS = [CHAR_POINTS[i] for i in topk_idx]
+TOPK_TARGET = CHAR_TARGET[topk_idx]
+TOPK_WEIGHTS = np.full(TOPK_COUNT, 1.0 / TOPK_COUNT, dtype=float)
+TOPK_NORM = characteristic_norm(TOPK_TARGET, CHAR_AREA)
 
 
 def _smoothness_penalty(phi_r, phi_b, amp_r, amp_b):
@@ -108,10 +118,12 @@ def _sample_characteristic_points(rng, n_points):
 
 def _select_train_points(epoch, rng):
     if epoch < TRAIN_STAGE1_EPOCHS:
-        return _sample_characteristic_points(rng, TRAIN_POINTS_STAGE1)
+        return TOPK_POINTS, TOPK_TARGET, TOPK_WEIGHTS, TOPK_NORM
     if epoch < TRAIN_STAGE2_EPOCHS:
-        return _sample_characteristic_points(rng, TRAIN_POINTS_STAGE2)
-    return _sample_characteristic_points(rng, TRAIN_POINTS_STAGE3)
+        points, targets, weights = _sample_characteristic_points(rng, TRAIN_POINTS_STAGE2)
+        return points, targets, weights, CHAR_NORM
+    points, targets, weights = _sample_characteristic_points(rng, TRAIN_POINTS_STAGE3)
+    return points, targets, weights, CHAR_NORM
 
 
 done = False
@@ -138,8 +150,10 @@ while not done:
             logger.info(scales[key][0])
         phi_r_final = np.repeat(np.array(locs["phi_r"][0]), SEG_LEN)
         phi_b_final = np.repeat(np.array(locs["phi_b"][0]), SEG_LEN)
-        amp_r_final = np.repeat(np.array(locs["amp_r"][0]), SEG_LEN)
-        amp_b_final = np.repeat(np.array(locs["amp_b"][0]), SEG_LEN)
+        amp_r_vals = np.array(locs.get("amp_r", [np.ones(N_SEGMENTS)])[0])
+        amp_b_vals = np.array(locs.get("amp_b", [np.ones(N_SEGMENTS)])[0])
+        amp_r_final = np.repeat(amp_r_vals, SEG_LEN)
+        amp_b_final = np.repeat(amp_b_vals, SEG_LEN)
 
         _, final_fidelity, rho_final, rho_target = trapped_ion_cat_sim(
             phi_r_final,
@@ -157,6 +171,7 @@ while not done:
             sample_area=FINAL_AREA,
             reward_scale=REWARD_SCALE,
             reward_clip=REWARD_CLIP,
+            reward_norm=FINAL_NORM,
             n_shots=0,
             return_details=True,
             reward_mode="characteristic",
@@ -228,9 +243,12 @@ while not done:
         sample_points, target_values, sample_weights = _sample_characteristic_points(
             rng, TRAIN_POINTS_STAGE3
         )
+        reward_norm = CHAR_NORM
     else:
         n_shots = N_SHOTS_TRAIN
-        sample_points, target_values, sample_weights = _select_train_points(epoch, rng)
+        sample_points, target_values, sample_weights, reward_norm = _select_train_points(
+            epoch, rng
+        )
 
     if epoch_type == "evaluation":
         reward_data, fidelity_data, _, _ = trapped_ion_cat_sim_batch(
@@ -249,6 +267,7 @@ while not done:
             sample_area=CHAR_AREA,
             reward_scale=REWARD_SCALE,
             reward_clip=REWARD_CLIP,
+            reward_norm=reward_norm,
             n_shots=n_shots,
             return_details=True,
             reward_mode="characteristic",
@@ -270,6 +289,7 @@ while not done:
             sample_area=CHAR_AREA,
             reward_scale=REWARD_SCALE,
             reward_clip=REWARD_CLIP,
+            reward_norm=reward_norm,
             n_shots=n_shots,
             reward_mode="characteristic",
         )

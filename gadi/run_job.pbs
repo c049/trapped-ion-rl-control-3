@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+#PBS -N qcrl_cat
+#PBS -P <PROJECT>
+#PBS -q <GPU_QUEUE>
+#PBS -l ncpus=8
+#PBS -l ngpus=1
+#PBS -l mem=32GB
+#PBS -l walltime=02:00:00
+#PBS -l jobfs=50GB
+#PBS -j oe
+#PBS -o logs/qcrl_${PBS_JOBID}.log
+
+set -euo pipefail
+
+PROJECT="${PROJECT:-<PROJECT>}"
+VENV_ROOT="${VENV_ROOT:-/scratch/${PROJECT}/${USER}/qcrl_envs}"
+
+PY_MOD="${PY_MOD:-python3/3.11.5}"
+CUDA_MOD="${CUDA_MOD:-cuda/12.2}"
+CUDNN_MOD="${CUDNN_MOD:-cudnn/8.9.7}"
+
+module purge
+module load "${PY_MOD}"
+module load "${CUDA_MOD}"
+module load "${CUDNN_MOD}"
+
+cd "${PBS_O_WORKDIR}"
+mkdir -p logs
+
+export OMP_NUM_THREADS="${OMP_NUM_THREADS:-8}"
+export MPLCONFIGDIR=/tmp/mpl
+mkdir -p "${MPLCONFIGDIR}"
+
+# Force JAX to prefer GPU when available
+export DQ_FORCE_GPU=1
+export JAX_PLATFORM_NAME=gpu
+# If needed, point XLA to CUDA:
+# export XLA_FLAGS="--xla_gpu_cuda_data_dir=${CUDA_HOME}"
+
+cd examples/trapped_ion_cat
+
+(
+  source "${VENV_ROOT}/venv_tf/bin/activate"
+  python trapped_ion_cat_training_server.py
+) > "${PBS_O_WORKDIR}/logs/server_${PBS_JOBID}.log" 2>&1 &
+SERVER_PID=$!
+
+sleep 5
+
+(
+  source "${VENV_ROOT}/venv_dq/bin/activate"
+  python trapped_ion_cat_client.py
+) > "${PBS_O_WORKDIR}/logs/client_${PBS_JOBID}.log" 2>&1
+STATUS=$?
+
+kill "${SERVER_PID}" || true
+wait "${SERVER_PID}" || true
+exit "${STATUS}"

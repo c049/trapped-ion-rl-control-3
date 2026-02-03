@@ -79,6 +79,13 @@ def _target_characteristic_values(target_rho, sample_points):
     )
 
 
+def characteristic_norm(target_values, sample_area):
+    norm = float((sample_area / np.pi) * np.sum(np.abs(target_values) ** 2))
+    if not np.isfinite(norm) or norm <= 0.0:
+        return 1.0
+    return norm
+
+
 def prepare_characteristic_distribution(
     alpha_cat,
     n_boson,
@@ -286,10 +293,11 @@ def trapped_ion_cat_sim(
     seed=None,
     return_details=False,
     reward_mode="characteristic",
+    reward_norm=None,
 ):
     """
     Simulate trapped-ion state preparation with RSB/BSB controls and return
-    a measurement-based reward derived from sampled Wigner values.
+    a measurement-based reward derived from sampled characteristic values.
     """
     rng = np.random.default_rng(seed)
 
@@ -352,6 +360,8 @@ def trapped_ion_cat_sim(
         reward = float(
             reward_scale * (sample_area / np.pi) * np.mean(reward_terms).real
         )
+        if reward_norm is not None:
+            reward = float(reward / reward_norm)
         if reward_clip is not None:
             reward = float(np.clip(reward, -reward_clip, reward_clip))
     else:
@@ -403,6 +413,7 @@ def trapped_ion_cat_sim_batch(
     seed=None,
     return_details=False,
     reward_mode="characteristic",
+    reward_norm=None,
 ):
     rng = np.random.default_rng(seed)
 
@@ -471,6 +482,8 @@ def trapped_ion_cat_sim_batch(
 
         reward_terms = meas * jnp.conjugate(target_vals) / weights
         reward = reward_scale * (sample_area / np.pi) * jnp.mean(reward_terms, axis=1).real
+        if reward_norm is not None:
+            reward = reward / reward_norm
         if reward_clip is not None:
             reward = jnp.clip(reward, -reward_clip, reward_clip)
     else:

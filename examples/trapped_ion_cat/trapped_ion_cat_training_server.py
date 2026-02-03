@@ -66,8 +66,8 @@ action_scale = {
 to_learn = {
     "phi_r": True,
     "phi_b": True,
-    "amp_r": False,
-    "amp_b": False,
+    "amp_r": True,
+    "amp_b": True,
 }
 
 if FAST_SMOKE:
@@ -144,7 +144,7 @@ PPO.train_eval(
     random_seed=0,
     num_epochs=num_epochs,
     normalize_observations=True,
-    normalize_rewards=False,
+    normalize_rewards=True,
     discount_factor=1.0,
     lr=3.0e-4,
     lr_schedule=None,
