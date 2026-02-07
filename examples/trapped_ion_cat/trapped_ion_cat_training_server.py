@@ -20,14 +20,17 @@ root_dir = os.getcwd()
 host_ip = "127.0.0.1"
 
 FAST_SMOKE = os.environ.get("FAST_SMOKE", "0") == "1"
-
-num_epochs = 300
-train_batch_size = 160
+PPO_LR = float(os.environ.get("PPO_LR", "1.0e-4"))
+PPO_ENTROPY_REG = float(os.environ.get("PPO_ENTROPY_REG", "5.0e-3"))
+PPO_INIT_STD = float(os.environ.get("PPO_INIT_STD", "0.3"))
+PPO_NUM_POLICY_UPDATES = int(os.environ.get("PPO_NUM_POLICY_UPDATES", "20"))
+num_epochs = int(os.environ.get("NUM_EPOCHS", "300"))
+train_batch_size = int(os.environ.get("TRAIN_BATCH_SIZE", "160"))
 
 do_evaluation = True
-eval_interval = 20
-eval_batch_size = 5
-num_policy_updates = 20
+eval_interval = int(os.environ.get("EVAL_INTERVAL", "20"))
+eval_batch_size = int(os.environ.get("EVAL_BATCH_SIZE", "5"))
+num_policy_updates = PPO_NUM_POLICY_UPDATES
 
 learn_residuals = True
 save_tf_style = False
@@ -66,8 +69,8 @@ action_scale = {
 to_learn = {
     "phi_r": True,
     "phi_b": True,
-    "amp_r": True,
-    "amp_b": True,
+    "amp_r": False,
+    "amp_b": False,
 }
 
 if FAST_SMOKE:
@@ -144,17 +147,17 @@ PPO.train_eval(
     random_seed=0,
     num_epochs=num_epochs,
     normalize_observations=True,
-    normalize_rewards=True,
+    normalize_rewards=False,
     discount_factor=1.0,
-    lr=3.0e-4,
+    lr=PPO_LR,
     lr_schedule=None,
     num_policy_updates=num_policy_updates,
     initial_adaptive_kl_beta=0.0,
     kl_cutoff_factor=0,
-    importance_ratio_clipping=0.2,
+    importance_ratio_clipping=0.1,
     value_pred_loss_coef=0.005,
     gradient_clipping=1.0,
-    entropy_regularization=2.0e-2,
+    entropy_regularization=PPO_ENTROPY_REG,
     log_prob_clipping=0.0,
     eval_interval=eval_interval,
     save_interval=2,
@@ -168,7 +171,7 @@ PPO.train_eval(
     replay_buffer_capacity=15000,
     ActorNet=actor_distribution_network.ActorDistributionNetwork,
     zero_means_kernel_initializer=False,
-    init_action_stddev=1.0,
+    init_action_stddev=PPO_INIT_STD,
     actor_fc_layers=(50, 20),
     value_fc_layers=(),
     use_rnn=False,

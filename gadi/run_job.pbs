@@ -47,6 +47,28 @@ export JAX_PLATFORM_NAME=gpu
 # If needed, point XLA to CUDA:
 export XLA_FLAGS="--xla_gpu_cuda_data_dir=/apps/cuda/12.2.2"
 export QCRL_SERIAL_SIM=0
+export CHAR_START_MODE=radial_topk
+export CHAR_RADIAL_EXP=1.0
+export CHAR_ALPHA_SCALE=1.0
+export CHAR_ALPHA_SCALES=1.0
+export CHAR_SAMPLER_MODE=radial_stratified
+export CHAR_RADIAL_BINS=12
+export CHAR_UNIFORM_MIX=0.20
+export CHAR_REWARD_OBJECTIVE=overlap_real
+export TRAIN_STAGE1_EPOCHS=0
+export TRAIN_STAGE2_EPOCHS=180
+export PHASE_CLIP=3.141592653589793
+export AMP_MIN=0.0
+export AMP_MAX=2.0
+export PPO_LR=3.0e-4
+export PPO_ENTROPY_REG=1.0e-3
+export PPO_INIT_STD=0.2
+export PPO_NUM_POLICY_UPDATES=8
+export NUM_EPOCHS=600
+export EVAL_INTERVAL=20
+export FINAL_REFINE_SAMPLES=64
+export FINAL_REFINE_SCALE=1.0
+# export CAT_REL_PHASE=1.57079632679   # optional: i|alpha> + i|-alpha>
 
 cd "${PROJECT_DIR}/examples/trapped_ion_cat"
 

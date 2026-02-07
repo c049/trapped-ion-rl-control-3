@@ -1,0 +1,229 @@
++ source /scratch/mu61/yl8164/qcrl_envs/venv_tf/bin/activate
+++ deactivate nondestructive
+++ '[' -n '' ']'
+++ '[' -n '' ']'
+++ hash -r
+++ '[' -n '' ']'
+++ unset VIRTUAL_ENV
+++ unset VIRTUAL_ENV_PROMPT
+++ '[' '!' nondestructive = nondestructive ']'
+++ VIRTUAL_ENV=/scratch/mu61/yl8164/qcrl_envs/venv_tf
+++ export VIRTUAL_ENV
+++ _OLD_VIRTUAL_PATH=/apps/cuda/12.2.2/bin:/apps/python3/3.11.7/bin:/opt/pbs/default/bin:/opt/nci/bin:/opt/bin:/opt/Modules/v4.3.0/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/local/pbs/bin
+++ PATH=/scratch/mu61/yl8164/qcrl_envs/venv_tf/bin:/apps/cuda/12.2.2/bin:/apps/python3/3.11.7/bin:/opt/pbs/default/bin:/opt/nci/bin:/opt/bin:/opt/Modules/v4.3.0/bin:/bin:/usr/bin:/usr/local/sbin:/usr/sbin:/local/pbs/bin
+++ export PATH
+++ '[' -n '' ']'
+++ '[' -z '' ']'
+++ _OLD_VIRTUAL_PS1=
+++ PS1='(venv_tf) '
+++ export PS1
+++ VIRTUAL_ENV_PROMPT='(venv_tf) '
+++ export VIRTUAL_ENV_PROMPT
+++ hash -r
++ python trapped_ion_cat_training_server.py
+2026-02-08 02:00:52.113782: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-02-08 02:00:53.336570: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-02-08 02:00:53.336618: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-02-08 02:00:53.487610: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-02-08 02:00:53.987994: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-02-08 02:01:02.828464: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+02/08/2026 02:01:40 Connection with: ('127.0.0.1', 47274)
+2026-02-08 02:01:41.908346: W tensorflow/core/common_runtime/gpu/gpu_bfc_allocator.cc:47] Overriding orig_value setting because the TF_FORCE_GPU_ALLOW_GROWTH environment variable is set. Original config value was 0.
+2026-02-08 02:01:41.908590: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1929] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 6446 MB memory:  -> device: 0, name: Tesla V100-SXM2-32GB, pci bus id: 0000:3e:00.0, compute capability: 7.0
+02/08/2026 02:01:44 Only tf.keras.optimizers.Optimiers are well supported, got a non-TF2 optimizer: <tensorflow.python.training.adam.AdamOptimizer object at 0x154e800fe790>
+-------------------
+Epoch 0
+  Policy steps: 0
+  Experience time: 0.00 mins
+  Policy train time: 0.00 mins
+  Average return: -0.01026
+WARNING:tensorflow:From /scratch/mu61/yl8164/quantum_control_rl_server/quantum_control_rl_server/PPO.py:231: ReplayBuffer.gather_all (from tf_agents.replay_buffers.replay_buffer) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `as_dataset(..., single_deterministic_pass=True)` instead.
+02/08/2026 02:02:40 From /scratch/mu61/yl8164/quantum_control_rl_server/quantum_control_rl_server/PPO.py:231: ReplayBuffer.gather_all (from tf_agents.replay_buffers.replay_buffer) is deprecated and will be removed in a future version.
+Instructions for updating:
+Use `as_dataset(..., single_deterministic_pass=True)` instead.
+-------------------
+Epoch 20
+  Policy steps: 160
+  Experience time: 0.49 mins
+  Policy train time: 0.43 mins
+  Average return: 0.02540
+-------------------
+Epoch 40
+  Policy steps: 320
+  Experience time: 0.77 mins
+  Policy train time: 0.44 mins
+  Average return: 0.02494
+-------------------
+Epoch 60
+  Policy steps: 480
+  Experience time: 1.06 mins
+  Policy train time: 0.46 mins
+  Average return: 0.02439
+-------------------
+Epoch 80
+  Policy steps: 640
+  Experience time: 1.34 mins
+  Policy train time: 0.47 mins
+  Average return: 0.02451
+-------------------
+Epoch 100
+  Policy steps: 800
+  Experience time: 1.62 mins
+  Policy train time: 0.48 mins
+  Average return: 0.02293
+-------------------
+Epoch 120
+  Policy steps: 960
+  Experience time: 1.91 mins
+  Policy train time: 0.49 mins
+  Average return: 0.02267
+-------------------
+Epoch 140
+  Policy steps: 1120
+  Experience time: 2.19 mins
+  Policy train time: 0.51 mins
+  Average return: 0.02195
+-------------------
+Epoch 160
+  Policy steps: 1280
+  Experience time: 2.48 mins
+  Policy train time: 0.52 mins
+  Average return: 0.02042
+-------------------
+Epoch 180
+  Policy steps: 1440
+  Experience time: 2.76 mins
+  Policy train time: 0.53 mins
+  Average return: 0.01923
+-------------------
+Epoch 200
+  Policy steps: 1600
+  Experience time: 3.06 mins
+  Policy train time: 0.54 mins
+  Average return: 0.02068
+-------------------
+Epoch 220
+  Policy steps: 1760
+  Experience time: 3.35 mins
+  Policy train time: 0.55 mins
+  Average return: 0.02029
+-------------------
+Epoch 240
+  Policy steps: 1920
+  Experience time: 3.63 mins
+  Policy train time: 0.57 mins
+  Average return: 0.01024
+-------------------
+Epoch 260
+  Policy steps: 2080
+  Experience time: 3.92 mins
+  Policy train time: 0.58 mins
+  Average return: -0.00030
+-------------------
+Epoch 280
+  Policy steps: 2240
+  Experience time: 4.21 mins
+  Policy train time: 0.59 mins
+  Average return: 0.17794
+-------------------
+Epoch 300
+  Policy steps: 2400
+  Experience time: 4.50 mins
+  Policy train time: 0.60 mins
+  Average return: 0.45442
+-------------------
+Epoch 320
+  Policy steps: 2560
+  Experience time: 4.79 mins
+  Policy train time: 0.61 mins
+  Average return: 0.40156
+-------------------
+Epoch 340
+  Policy steps: 2720
+  Experience time: 5.08 mins
+  Policy train time: 0.63 mins
+  Average return: 0.32074
+-------------------
+Epoch 360
+  Policy steps: 2880
+  Experience time: 5.37 mins
+  Policy train time: 0.64 mins
+  Average return: 0.42457
+-------------------
+Epoch 380
+  Policy steps: 3040
+  Experience time: 5.66 mins
+  Policy train time: 0.65 mins
+  Average return: 0.45593
+-------------------
+Epoch 400
+  Policy steps: 3200
+  Experience time: 5.94 mins
+  Policy train time: 0.66 mins
+  Average return: 0.43418
+-------------------
+Epoch 420
+  Policy steps: 3360
+  Experience time: 6.23 mins
+  Policy train time: 0.67 mins
+  Average return: 0.53291
+-------------------
+Epoch 440
+  Policy steps: 3520
+  Experience time: 6.52 mins
+  Policy train time: 0.68 mins
+  Average return: 0.53523
+-------------------
+Epoch 460
+  Policy steps: 3680
+  Experience time: 6.80 mins
+  Policy train time: 0.70 mins
+  Average return: 0.51119
+-------------------
+Epoch 480
+  Policy steps: 3840
+  Experience time: 7.09 mins
+  Policy train time: 0.71 mins
+  Average return: 0.55008
+-------------------
+Epoch 500
+  Policy steps: 4000
+  Experience time: 7.38 mins
+  Policy train time: 0.72 mins
+  Average return: 0.56007
+-------------------
+Epoch 520
+  Policy steps: 4160
+  Experience time: 7.66 mins
+  Policy train time: 0.73 mins
+  Average return: 0.59907
+-------------------
+Epoch 540
+  Policy steps: 4320
+  Experience time: 7.95 mins
+  Policy train time: 0.74 mins
+  Average return: 0.58692
+-------------------
+Epoch 560
+  Policy steps: 4480
+  Experience time: 8.24 mins
+  Policy train time: 0.76 mins
+  Average return: 0.64491
+-------------------
+Epoch 580
+  Policy steps: 4640
+  Experience time: 8.52 mins
+  Policy train time: 0.77 mins
+  Average return: 0.66383
+-------------------
+Epoch 600
+  Policy steps: 4800
+  Experience time: 8.81 mins
+  Policy train time: 0.78 mins
+  Average return: 0.69012

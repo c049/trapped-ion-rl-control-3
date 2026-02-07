@@ -42,8 +42,8 @@ ALPHA_CAT = 2.0
 TRAIN_POINTS_STAGE1 = 120
 TRAIN_POINTS_STAGE2 = 240
 TRAIN_POINTS_STAGE3 = 960
-TRAIN_STAGE1_EPOCHS = 200
-TRAIN_STAGE2_EPOCHS = 400
+TRAIN_STAGE1_EPOCHS = int(os.environ.get("TRAIN_STAGE1_EPOCHS", "120"))
+TRAIN_STAGE2_EPOCHS = int(os.environ.get("TRAIN_STAGE2_EPOCHS", "240"))
 
 CHAR_GRID_SIZE = 61
 FINAL_GRID_SIZE = 61
@@ -65,21 +65,67 @@ SMOOTH_PHI_WEIGHT = 1.0
 SMOOTH_AMP_WEIGHT = 0.2
 REWARD_SCALE = 1.0
 REWARD_CLIP = None
+CHAR_REWARD_OBJECTIVE = os.environ.get("CHAR_REWARD_OBJECTIVE", "overlap_real").lower()
 
 N_SHOTS_TRAIN = 0
 N_SHOTS_EVAL = 0
 
-ACTION_NOISE_PHI = 0.05
-ACTION_NOISE_AMP = 0.05
+ACTION_NOISE_PHI = 0.0
+ACTION_NOISE_AMP = 0.0
 
-CHAR_UNIFORM_MIX = 0.2
-CHAR_POINTS, CHAR_TARGET, CHAR_WEIGHTS, CHAR_AREA = prepare_characteristic_distribution(
-    alpha_cat=ALPHA_CAT,
-    n_boson=N_BOSON,
-    extent=SAMPLE_EXTENT,
-    grid_size=CHAR_GRID_SIZE,
-    cat_parity="even",
-    mix_uniform=CHAR_UNIFORM_MIX,
+CHAR_START_MODE = os.environ.get("CHAR_START_MODE", "radial_topk").lower()
+CHAR_RADIAL_EXP = float(os.environ.get("CHAR_RADIAL_EXP", "1.0"))
+CHAR_ALPHA_SCALE = float(os.environ.get("CHAR_ALPHA_SCALE", "1.0"))
+_alpha_scales_env = os.environ.get("CHAR_ALPHA_SCALES", "").strip()
+if _alpha_scales_env:
+    CHAR_ALPHA_SCALES = [float(v.strip()) for v in _alpha_scales_env.split(",") if v.strip()]
+else:
+    CHAR_ALPHA_SCALES = [CHAR_ALPHA_SCALE]
+CHAR_SAMPLER_MODE = os.environ.get("CHAR_SAMPLER_MODE", "radial_stratified").lower()
+CHAR_RADIAL_BINS = int(os.environ.get("CHAR_RADIAL_BINS", "8"))
+_cat_phase_env = os.environ.get("CAT_REL_PHASE", "").strip()
+CAT_REL_PHASE = None if _cat_phase_env == "" else float(_cat_phase_env)
+PHASE_CLIP = float(os.environ.get("PHASE_CLIP", str(np.pi)))
+AMP_MIN = float(os.environ.get("AMP_MIN", "0.0"))
+AMP_MAX = float(os.environ.get("AMP_MAX", "2.0"))
+
+CHAR_UNIFORM_MIX = float(os.environ.get("CHAR_UNIFORM_MIX", "0.5"))
+FINAL_REFINE_SAMPLES = int(os.environ.get("FINAL_REFINE_SAMPLES", "64"))
+FINAL_REFINE_SCALE = float(os.environ.get("FINAL_REFINE_SCALE", "1.0"))
+FINAL_REFINE_SEED = int(os.environ.get("FINAL_REFINE_SEED", "1234"))
+
+
+def _build_characteristic_distribution(grid_size):
+    all_points = []
+    all_targets = []
+    all_weights = []
+    all_areas = []
+    n_scales = len(CHAR_ALPHA_SCALES)
+    for alpha_scale in CHAR_ALPHA_SCALES:
+        points_i, target_i, weights_i, area_i = prepare_characteristic_distribution(
+            alpha_cat=ALPHA_CAT,
+            n_boson=N_BOSON,
+            extent=SAMPLE_EXTENT,
+            grid_size=grid_size,
+            cat_parity="even",
+            mix_uniform=CHAR_UNIFORM_MIX,
+            alpha_scale=alpha_scale,
+            cat_phase=CAT_REL_PHASE,
+        )
+        all_points.extend(points_i)
+        all_targets.append(target_i)
+        all_weights.append(weights_i / float(n_scales))
+        all_areas.append(area_i)
+    return (
+        all_points,
+        np.concatenate(all_targets),
+        np.concatenate(all_weights),
+        float(np.mean(all_areas)),
+    )
+
+
+CHAR_POINTS, CHAR_TARGET, CHAR_WEIGHTS, CHAR_AREA = _build_characteristic_distribution(
+    CHAR_GRID_SIZE
 )
 FINAL_POINTS, FINAL_TARGET, FINAL_WEIGHTS, FINAL_AREA = prepare_characteristic_distribution(
     alpha_cat=ALPHA_CAT,
@@ -88,16 +134,57 @@ FINAL_POINTS, FINAL_TARGET, FINAL_WEIGHTS, FINAL_AREA = prepare_characteristic_d
     grid_size=FINAL_GRID_SIZE,
     cat_parity="even",
     mix_uniform=CHAR_UNIFORM_MIX,
+    alpha_scale=CHAR_ALPHA_SCALE,
+    cat_phase=CAT_REL_PHASE,
 )
 CHAR_NORM = characteristic_norm(CHAR_TARGET, CHAR_AREA)
 FINAL_NORM = characteristic_norm(FINAL_TARGET, FINAL_AREA)
+CHAR_RADII = np.abs(np.asarray(CHAR_POINTS))
 
 TOPK_COUNT = min(TRAIN_POINTS_STAGE1, len(CHAR_POINTS))
-topk_idx = np.argsort(np.abs(CHAR_TARGET))[-TOPK_COUNT:]
+if CHAR_START_MODE == "topk":
+    score = np.abs(CHAR_TARGET)
+else:
+    radii = np.maximum(CHAR_RADII, 1e-6)
+    score = np.abs(CHAR_TARGET) * (radii ** CHAR_RADIAL_EXP)
+
+
+def _build_stage1_topk_indices(score, count):
+    # For stage-1 warmup, keep strongest informative points globally.
+    return np.argsort(score)[-count:]
+
+
+topk_idx = _build_stage1_topk_indices(score, TOPK_COUNT)
 TOPK_POINTS = [CHAR_POINTS[i] for i in topk_idx]
 TOPK_TARGET = CHAR_TARGET[topk_idx]
 TOPK_WEIGHTS = np.full(TOPK_COUNT, 1.0 / TOPK_COUNT, dtype=float)
 TOPK_NORM = characteristic_norm(TOPK_TARGET, CHAR_AREA)
+
+logger.info(
+    "Characteristic sampling: start_mode=%s alpha_scales=%s radial_exp=%.2f cat_phase=%s",
+    CHAR_START_MODE,
+    ",".join(f"{v:.3f}" for v in CHAR_ALPHA_SCALES),
+    CHAR_RADIAL_EXP,
+    "none" if CAT_REL_PHASE is None else f"{CAT_REL_PHASE:.3f}",
+)
+logger.info(
+    "Characteristic reward objective: %s | stage epochs: %d -> %d -> end",
+    CHAR_REWARD_OBJECTIVE,
+    TRAIN_STAGE1_EPOCHS,
+    TRAIN_STAGE2_EPOCHS,
+)
+logger.info(
+    "Characteristic point sampler: mode=%s radial_bins=%d uniform_mix=%.2f",
+    CHAR_SAMPLER_MODE,
+    CHAR_RADIAL_BINS,
+    CHAR_UNIFORM_MIX,
+)
+logger.info(
+    "Action clipping: phase_clip=%.3f amp_range=[%.3f, %.3f]",
+    PHASE_CLIP,
+    AMP_MIN,
+    AMP_MAX,
+)
 
 
 def _smoothness_penalty(phi_r, phi_b, amp_r, amp_b):
@@ -158,11 +245,85 @@ def _log_batch_diversity(tag, phi_r, phi_b, amp_r, amp_b):
         )
 
 
-def _sample_characteristic_points(rng, n_points):
-    idx = rng.choice(len(CHAR_POINTS), size=n_points, replace=True, p=CHAR_WEIGHTS)
+def _sample_characteristic_points(rng, n_points, mode=None):
+    mode = CHAR_SAMPLER_MODE if mode is None else mode
+    if mode == "weighted":
+        idx = rng.choice(len(CHAR_POINTS), size=n_points, replace=True, p=CHAR_WEIGHTS)
+        samp_probs = CHAR_WEIGHTS[idx]
+    elif mode == "uniform":
+        idx = rng.choice(len(CHAR_POINTS), size=n_points, replace=True)
+        samp_probs = np.full(n_points, 1.0 / len(CHAR_POINTS), dtype=float)
+    elif mode == "radial_stratified":
+        n_bins = max(1, CHAR_RADIAL_BINS)
+        r_max = float(np.max(CHAR_RADII))
+        edges = np.linspace(0.0, r_max + 1e-12, n_bins + 1)
+        idx_list = []
+        bin_candidates = []
+        bin_mass = np.zeros(n_bins, dtype=float)
+        for bi in range(n_bins):
+            lo = edges[bi]
+            hi = edges[bi + 1]
+            if bi == n_bins - 1:
+                mask = (CHAR_RADII >= lo) & (CHAR_RADII <= hi)
+            else:
+                mask = (CHAR_RADII >= lo) & (CHAR_RADII < hi)
+            candidates = np.flatnonzero(mask)
+            bin_candidates.append(candidates)
+            if candidates.size > 0:
+                bin_mass[bi] = float(np.sum(CHAR_WEIGHTS[candidates]))
+
+        mass_total = float(np.sum(bin_mass))
+        if mass_total <= 0.0 or not np.isfinite(mass_total):
+            quotas = np.full(n_bins, n_points // n_bins, dtype=int)
+            quotas[: (n_points % n_bins)] += 1
+        else:
+            raw = n_points * (bin_mass / mass_total)
+            quotas = np.floor(raw).astype(int)
+            remaining = int(n_points - int(np.sum(quotas)))
+            if remaining > 0:
+                frac = raw - quotas
+                order = np.argsort(frac)[::-1]
+                for bi in order[:remaining]:
+                    quotas[bi] += 1
+        # q(alpha): actual sampling distribution induced by stratified sampling.
+        # This must be used for importance weighting in reward evaluation.
+        q = np.zeros(len(CHAR_POINTS), dtype=float)
+        for bi in range(n_bins):
+            candidates = bin_candidates[bi]
+            if candidates.size == 0:
+                continue
+            take = min(int(quotas[bi]), n_points - len(idx_list))
+            if take <= 0:
+                break
+            local_w = CHAR_WEIGHTS[candidates]
+            local_w_sum = float(np.sum(local_w))
+            if local_w_sum > 0.0 and np.isfinite(local_w_sum):
+                local_w = local_w / local_w_sum
+                sampled = rng.choice(candidates, size=take, replace=True, p=local_w)
+                q[candidates] += (take / float(n_points)) * local_w
+            else:
+                sampled = rng.choice(candidates, size=take, replace=True)
+                q[candidates] += (take / float(n_points)) / float(candidates.size)
+            idx_list.extend(sampled.tolist())
+        n_fill = n_points - len(idx_list)
+        if n_fill > 0:
+            fill = rng.choice(
+                len(CHAR_POINTS),
+                size=n_fill,
+                replace=True,
+                p=CHAR_WEIGHTS,
+            )
+            idx_list.extend(fill.tolist())
+            q += (n_fill / float(n_points)) * CHAR_WEIGHTS
+        idx = np.asarray(idx_list, dtype=int)
+        q = np.maximum(q, 1e-12)
+        q = q / float(np.sum(q))
+        samp_probs = q[idx]
+    else:
+        raise ValueError(f"Unknown CHAR_SAMPLER_MODE={mode}")
     points = [CHAR_POINTS[i] for i in idx]
     targets = CHAR_TARGET[idx]
-    weights = CHAR_WEIGHTS[idx]
+    weights = np.asarray(samp_probs, dtype=float)
     return points, targets, weights
 
 
@@ -176,8 +337,19 @@ def _select_train_points(epoch, rng):
     return points, targets, weights, CHAR_NORM
 
 
+EVAL_RNG = np.random.default_rng(12345)
+EVAL_POINTS, EVAL_TARGET, EVAL_WEIGHTS = _sample_characteristic_points(
+    EVAL_RNG, TRAIN_POINTS_STAGE3, mode=CHAR_SAMPLER_MODE
+)
+
+
 done = False
 eval_log_path = os.path.join(os.getcwd(), "eval_fidelity.csv")
+if os.environ.get("CLEAR_EVAL_LOG", "1") == "1" and os.path.exists(eval_log_path):
+    os.remove(eval_log_path)
+best_eval_fidelity = -np.inf
+best_eval_epoch = -1
+best_eval_action = None
 while not done:
     message, done = client_socket.recv_data()
     logger.info("Received message from RL agent server.")
@@ -188,6 +360,7 @@ while not done:
         break
 
     epoch_type = message["epoch_type"]
+    fidelity_data = None
 
     if epoch_type == "final":
         logger.info("Final Epoch")
@@ -198,12 +371,95 @@ while not done:
             logger.info(locs[key][0])
             logger.info("scales[%s]:", key)
             logger.info(scales[key][0])
-        phi_r_final = np.repeat(np.array(locs["phi_r"][0]), SEG_LEN)
-        phi_b_final = np.repeat(np.array(locs["phi_b"][0]), SEG_LEN)
-        amp_r_vals = np.array(locs.get("amp_r", [np.ones(N_SEGMENTS)])[0])
-        amp_b_vals = np.array(locs.get("amp_b", [np.ones(N_SEGMENTS)])[0])
-        amp_r_final = np.repeat(amp_r_vals, SEG_LEN)
-        amp_b_final = np.repeat(amp_b_vals, SEG_LEN)
+        loc_phi_r = np.array(locs["phi_r"][0], dtype=float)
+        loc_phi_b = np.array(locs["phi_b"][0], dtype=float)
+        scale_phi_r = np.array(scales["phi_r"][0], dtype=float)
+        scale_phi_b = np.array(scales["phi_b"][0], dtype=float)
+
+        if best_eval_action is not None:
+            logger.info(
+                "Using best evaluation action from epoch %d with eval fidelity %.6f",
+                best_eval_epoch,
+                best_eval_fidelity,
+            )
+            base_phi_r = np.array(best_eval_action["phi_r"], dtype=float)
+            base_phi_b = np.array(best_eval_action["phi_b"], dtype=float)
+            base_amp_r = np.array(best_eval_action["amp_r"], dtype=float)
+            base_amp_b = np.array(best_eval_action["amp_b"], dtype=float)
+        else:
+            base_phi_r = loc_phi_r
+            base_phi_b = loc_phi_b
+            amp_r_vals = np.array(locs.get("amp_r", [np.ones(N_SEGMENTS)])[0])
+            amp_b_vals = np.array(locs.get("amp_b", [np.ones(N_SEGMENTS)])[0])
+            base_amp_r = np.array(amp_r_vals, dtype=float)
+            base_amp_b = np.array(amp_b_vals, dtype=float)
+
+        # Optional one-shot refinement: sample candidates from the final policy
+        # distribution and pick the highest-fidelity action.
+        if FINAL_REFINE_SAMPLES > 0:
+            n_cand = FINAL_REFINE_SAMPLES + 1
+            cand_phi_r = np.repeat(base_phi_r[None, :], n_cand, axis=0)
+            cand_phi_b = np.repeat(base_phi_b[None, :], n_cand, axis=0)
+            cand_amp_r = np.repeat(base_amp_r[None, :], n_cand, axis=0)
+            cand_amp_b = np.repeat(base_amp_b[None, :], n_cand, axis=0)
+            if FINAL_REFINE_SAMPLES > 0:
+                rng_ref = np.random.default_rng(FINAL_REFINE_SEED)
+                noise_r = rng_ref.normal(size=(FINAL_REFINE_SAMPLES, N_SEGMENTS))
+                noise_b = rng_ref.normal(size=(FINAL_REFINE_SAMPLES, N_SEGMENTS))
+                cand_phi_r[1:, :] = base_phi_r[None, :] + FINAL_REFINE_SCALE * noise_r * scale_phi_r[None, :]
+                cand_phi_b[1:, :] = base_phi_b[None, :] + FINAL_REFINE_SCALE * noise_b * scale_phi_b[None, :]
+                cand_phi_r = np.clip(cand_phi_r, -PHASE_CLIP, PHASE_CLIP)
+                cand_phi_b = np.clip(cand_phi_b, -PHASE_CLIP, PHASE_CLIP)
+                cand_amp_r = np.clip(cand_amp_r, AMP_MIN, AMP_MAX)
+                cand_amp_b = np.clip(cand_amp_b, AMP_MIN, AMP_MAX)
+
+            cand_phi_r_full = np.repeat(cand_phi_r, SEG_LEN, axis=1)
+            cand_phi_b_full = np.repeat(cand_phi_b, SEG_LEN, axis=1)
+            cand_amp_r_full = np.repeat(cand_amp_r, SEG_LEN, axis=1)
+            cand_amp_b_full = np.repeat(cand_amp_b, SEG_LEN, axis=1)
+
+            _, cand_fidelity, _, _ = trapped_ion_cat_sim_batch(
+                cand_phi_r_full,
+                cand_phi_b_full,
+                amp_r=cand_amp_r_full,
+                amp_b=cand_amp_b_full,
+                n_boson=N_BOSON,
+                omega=2 * np.pi * 0.002,
+                t_step=T_STEP,
+                alpha_cat=ALPHA_CAT,
+                cat_parity="even",
+                cat_phase=CAT_REL_PHASE,
+                sample_points=[0.0 + 0.0j],
+                target_values=np.array([1.0 + 0.0j], dtype=complex),
+                sample_weights=np.array([1.0], dtype=float),
+                sample_area=1.0,
+                reward_scale=1.0,
+                reward_clip=None,
+                reward_norm=None,
+                n_shots=0,
+                return_details=True,
+                return_density=False,
+                reward_mode="characteristic",
+                characteristic_objective=CHAR_REWARD_OBJECTIVE,
+            )
+            cand_fidelity = np.asarray(cand_fidelity, dtype=float)
+            best_cand_idx = int(np.argmax(cand_fidelity))
+            base_phi_r = cand_phi_r[best_cand_idx].copy()
+            base_phi_b = cand_phi_b[best_cand_idx].copy()
+            base_amp_r = cand_amp_r[best_cand_idx].copy()
+            base_amp_b = cand_amp_b[best_cand_idx].copy()
+            logger.info(
+                "Final refinement candidates=%d scale=%.3f | best sampled fidelity %.6f (idx=%d)",
+                n_cand,
+                FINAL_REFINE_SCALE,
+                float(cand_fidelity[best_cand_idx]),
+                best_cand_idx,
+            )
+
+        phi_r_final = np.repeat(base_phi_r, SEG_LEN)
+        phi_b_final = np.repeat(base_phi_b, SEG_LEN)
+        amp_r_final = np.repeat(base_amp_r, SEG_LEN)
+        amp_b_final = np.repeat(base_amp_b, SEG_LEN)
 
         _, final_fidelity, rho_final, rho_target = trapped_ion_cat_sim(
             phi_r_final,
@@ -215,6 +471,7 @@ while not done:
             t_step=T_STEP,
             alpha_cat=ALPHA_CAT,
             cat_parity="even",
+            cat_phase=CAT_REL_PHASE,
             sample_points=FINAL_POINTS,
             target_values=FINAL_TARGET,
             sample_weights=FINAL_WEIGHTS,
@@ -226,6 +483,7 @@ while not done:
             return_details=True,
             return_density=True,
             reward_mode="characteristic",
+            characteristic_objective=CHAR_REWARD_OBJECTIVE,
         )
 
         output_dir = os.path.join(os.getcwd(), "outputs")
@@ -308,15 +566,34 @@ while not done:
             amp_r_coeff = amp_r_coeff + rng.normal(0.0, ACTION_NOISE_AMP, size=amp_r_coeff.shape)
             amp_b_coeff = amp_b_coeff + rng.normal(0.0, ACTION_NOISE_AMP, size=amp_b_coeff.shape)
 
+    phi_r_before = phi_r_coeff.copy()
+    phi_b_before = phi_b_coeff.copy()
+    amp_r_before = amp_r_coeff.copy()
+    amp_b_before = amp_b_coeff.copy()
+    phi_r_coeff = np.clip(phi_r_coeff, -PHASE_CLIP, PHASE_CLIP)
+    phi_b_coeff = np.clip(phi_b_coeff, -PHASE_CLIP, PHASE_CLIP)
+    amp_r_coeff = np.clip(amp_r_coeff, AMP_MIN, AMP_MAX)
+    amp_b_coeff = np.clip(amp_b_coeff, AMP_MIN, AMP_MAX)
+    if epoch_type == "evaluation" or epoch % 20 == 0:
+        clip_phi_r = float(np.mean(phi_r_before != phi_r_coeff))
+        clip_phi_b = float(np.mean(phi_b_before != phi_b_coeff))
+        clip_amp_r = float(np.mean(amp_r_before != amp_r_coeff))
+        clip_amp_b = float(np.mean(amp_b_before != amp_b_coeff))
+        logger.info(
+            "Clip ratio phi_r=%.3f phi_b=%.3f amp_r=%.3f amp_b=%.3f",
+            clip_phi_r,
+            clip_phi_b,
+            clip_amp_r,
+            clip_amp_b,
+        )
+
     phi_r = np.repeat(phi_r_coeff, SEG_LEN, axis=1)
     phi_b = np.repeat(phi_b_coeff, SEG_LEN, axis=1)
     amp_r = np.repeat(amp_r_coeff, SEG_LEN, axis=1)
     amp_b = np.repeat(amp_b_coeff, SEG_LEN, axis=1)
     if epoch_type == "evaluation":
         n_shots = N_SHOTS_EVAL
-        sample_points, target_values, sample_weights = _sample_characteristic_points(
-            rng, TRAIN_POINTS_STAGE3
-        )
+        sample_points, target_values, sample_weights = EVAL_POINTS, EVAL_TARGET, EVAL_WEIGHTS
         reward_norm = None
     else:
         n_shots = N_SHOTS_TRAIN
@@ -336,6 +613,7 @@ while not done:
             t_step=T_STEP,
             alpha_cat=ALPHA_CAT,
             cat_parity="even",
+            cat_phase=CAT_REL_PHASE,
             sample_points=sample_points,
             target_values=target_values,
             sample_weights=sample_weights,
@@ -346,6 +624,7 @@ while not done:
             n_shots=n_shots,
             return_details=True,
             reward_mode="characteristic",
+            characteristic_objective=CHAR_REWARD_OBJECTIVE,
         )
     else:
         reward_data = trapped_ion_cat_sim_batch(
@@ -358,6 +637,7 @@ while not done:
             t_step=T_STEP,
             alpha_cat=ALPHA_CAT,
             cat_parity="even",
+            cat_phase=CAT_REL_PHASE,
             sample_points=sample_points,
             target_values=target_values,
             sample_weights=sample_weights,
@@ -367,6 +647,7 @@ while not done:
             reward_norm=reward_norm,
             n_shots=n_shots,
             reward_mode="characteristic",
+            characteristic_objective=CHAR_REWARD_OBJECTIVE,
         )
         smooth_pen = _smoothness_penalty(phi_r, phi_b, amp_r, amp_b)
         reward_data = reward_data - SMOOTH_LAMBDA * smooth_pen
@@ -379,9 +660,31 @@ while not done:
     logger.info("Average reward %.3f", R)
     logger.info("STDev reward %.3f", std_R)
     if fidelity_data is not None:
-        mean_fidelity = float(np.mean(fidelity_data))
-        std_fidelity = float(np.std(fidelity_data))
-        logger.info("Eval fidelity %.6f", mean_fidelity)
+        fidelity_arr = np.asarray(fidelity_data, dtype=float)
+        mean_fidelity = float(np.mean(fidelity_arr))
+        std_fidelity = float(np.std(fidelity_arr))
+        best_idx = int(np.argmax(fidelity_arr))
+        batch_best_fidelity = float(fidelity_arr[best_idx])
+        logger.info(
+            "Eval fidelity mean %.6f | batch-best %.6f (idx=%d)",
+            mean_fidelity,
+            batch_best_fidelity,
+            best_idx,
+        )
+        if batch_best_fidelity > best_eval_fidelity:
+            best_eval_fidelity = batch_best_fidelity
+            best_eval_epoch = epoch
+            best_eval_action = {
+                "phi_r": phi_r_coeff[best_idx].copy(),
+                "phi_b": phi_b_coeff[best_idx].copy(),
+                "amp_r": amp_r_coeff[best_idx].copy(),
+                "amp_b": amp_b_coeff[best_idx].copy(),
+            }
+            logger.info(
+                "Updated best eval action at epoch %d with fidelity %.6f",
+                best_eval_epoch,
+                best_eval_fidelity,
+            )
         write_header = not os.path.exists(eval_log_path)
         with open(eval_log_path, "a", encoding="utf-8") as f:
             if write_header:

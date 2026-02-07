@@ -4,10 +4,12 @@ import jax.numpy as jnp
 import dynamiqs as dq
 
 
-def _cat_state(alpha, n_boson, parity="even"):
+def _cat_state(alpha, n_boson, parity="even", rel_phase=None):
     psi_p = dq.coherent(n_boson, alpha)
     psi_m = dq.coherent(n_boson, -alpha)
-    psi = psi_p - psi_m if parity == "odd" else psi_p + psi_m
+    if rel_phase is None:
+        rel_phase = 0.0 if parity == "even" else np.pi
+    psi = psi_p + np.exp(1j * rel_phase) * psi_m
     return psi.unit()
 
 
@@ -105,16 +107,19 @@ def prepare_characteristic_distribution(
     grid_size,
     cat_parity="even",
     mix_uniform=0.0,
+    alpha_scale=1.0,
+    cat_phase=None,
 ):
     axis = np.linspace(-extent, extent, grid_size)
     if grid_size > 1:
         delta = float(axis[1] - axis[0])
     else:
         delta = float(2.0 * extent)
-    area_element = delta * delta
-    target = _cat_state(alpha_cat, n_boson, parity=cat_parity)
+    scaled_delta = delta * float(alpha_scale)
+    area_element = scaled_delta * scaled_delta
+    target = _cat_state(alpha_cat, n_boson, parity=cat_parity, rel_phase=cat_phase)
     target_rho = target @ target.dag()
-    points = [x + 1j * y for x in axis for y in axis]
+    points = [alpha_scale * (x + 1j * y) for x in axis for y in axis]
     chi_target = _target_characteristic_values(target_rho, points)
     weights = np.abs(chi_target)
     if mix_uniform > 0.0:
@@ -303,6 +308,7 @@ def trapped_ion_cat_sim(
     n_times=None,
     alpha_cat=2.0,
     cat_parity="even",
+    cat_phase=None,
     sample_mode="cat",
     sample_grid=5,
     sample_extent=2.5,
@@ -317,6 +323,7 @@ def trapped_ion_cat_sim(
     seed=None,
     return_details=False,
     reward_mode="characteristic",
+    characteristic_objective="overlap_real",
     reward_norm=None,
     return_density=False,
 ):
@@ -360,7 +367,7 @@ def trapped_ion_cat_sim(
         )
         rho_boson = None
 
-    target = _cat_state(alpha_cat, n_boson, parity=cat_parity)
+    target = _cat_state(alpha_cat, n_boson, parity=cat_parity, rel_phase=cat_phase)
     target_rho = target @ target.dag()
 
     if sample_points is None:
@@ -400,8 +407,28 @@ def trapped_ion_cat_sim(
         norm = np.mean((np.abs(target_values) ** 2) / denom)
         if not np.isfinite(norm) or norm <= 0.0:
             norm = 1.0
-        # Normalized overlap: equals 1 for the target state (up to sampling error).
-        reward = float(reward_scale * overlap.real / norm)
+        p = np.asarray(sample_weights, dtype=float)
+        p = np.maximum(p, 1e-12)
+        inv_p = 1.0 / p
+        if characteristic_objective == "nmse":
+            # Importance-corrected MSE: avoid double-counting when points are
+            # already sampled from P(alpha).
+            num = np.mean((np.abs(meas - target_values) ** 2) * inv_p)
+            den = np.mean((np.abs(target_values) ** 2) * inv_p)
+            if not np.isfinite(den) or den <= 0.0:
+                den = 1.0
+            reward = float(reward_scale * (1.0 - num / den))
+        elif characteristic_objective == "nmse_exp":
+            num = np.mean((np.abs(meas - target_values) ** 2) * inv_p)
+            den = np.mean((np.abs(target_values) ** 2) * inv_p)
+            if not np.isfinite(den) or den <= 0.0:
+                den = 1.0
+            reward = float(reward_scale * np.exp(-num / den))
+        elif characteristic_objective == "overlap_abs":
+            reward = float(reward_scale * np.abs(overlap) / norm)
+        else:
+            # Historical behavior: normalized real-part overlap.
+            reward = float(reward_scale * overlap.real / norm)
         if reward_clip is not None:
             reward = float(np.clip(reward, -reward_clip, reward_clip))
     else:
@@ -440,6 +467,7 @@ def trapped_ion_cat_sim_batch(
     n_times=None,
     alpha_cat=2.0,
     cat_parity="even",
+    cat_phase=None,
     sample_mode="cat",
     sample_grid=5,
     sample_extent=2.5,
@@ -454,6 +482,7 @@ def trapped_ion_cat_sim_batch(
     seed=None,
     return_details=False,
     reward_mode="characteristic",
+    characteristic_objective="overlap_real",
     reward_norm=None,
     return_density=False,
 ):
@@ -498,6 +527,7 @@ def trapped_ion_cat_sim_batch(
                     seed=seed_i,
                     return_details=True,
                     reward_mode=reward_mode,
+                    characteristic_objective=characteristic_objective,
                     reward_norm=reward_norm,
                     return_density=return_density,
                 )
@@ -531,6 +561,7 @@ def trapped_ion_cat_sim_batch(
                     seed=seed_i,
                     return_details=False,
                     reward_mode=reward_mode,
+                    characteristic_objective=characteristic_objective,
                     reward_norm=reward_norm,
                     return_density=return_density,
                 )
@@ -578,7 +609,7 @@ def trapped_ion_cat_sim_batch(
         )
         rho_boson = None
 
-    target = _cat_state(alpha_cat, n_boson, parity=cat_parity)
+    target = _cat_state(alpha_cat, n_boson, parity=cat_parity, rel_phase=cat_phase)
     target_rho = target @ target.dag()
 
     if sample_points is None:
@@ -620,8 +651,23 @@ def trapped_ion_cat_sim_batch(
         overlap = jnp.mean(meas * jnp.conjugate(target_vals) / weights, axis=1)
         norm = jnp.mean((jnp.abs(target_vals) ** 2) / weights)
         norm = jnp.where(jnp.isfinite(norm) & (norm > 0), norm, 1.0)
-        # Normalized overlap: equals 1 for the target state (up to sampling error).
-        reward = reward_scale * overlap.real / norm
+        p = jnp.maximum(weights, 1e-12)
+        inv_p = 1.0 / p
+        if characteristic_objective == "nmse":
+            num = jnp.mean((jnp.abs(meas - target_vals) ** 2) * inv_p[None, :], axis=1)
+            den = jnp.mean((jnp.abs(target_vals) ** 2) * inv_p)
+            den = jnp.where(jnp.isfinite(den) & (den > 0), den, 1.0)
+            reward = reward_scale * (1.0 - num / den)
+        elif characteristic_objective == "nmse_exp":
+            num = jnp.mean((jnp.abs(meas - target_vals) ** 2) * inv_p[None, :], axis=1)
+            den = jnp.mean((jnp.abs(target_vals) ** 2) * inv_p)
+            den = jnp.where(jnp.isfinite(den) & (den > 0), den, 1.0)
+            reward = reward_scale * jnp.exp(-num / den)
+        elif characteristic_objective == "overlap_abs":
+            reward = reward_scale * jnp.abs(overlap) / norm
+        else:
+            # Historical behavior: normalized real-part overlap.
+            reward = reward_scale * overlap.real / norm
         if reward_clip is not None:
             reward = jnp.clip(reward, -reward_clip, reward_clip)
     else:
