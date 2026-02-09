@@ -354,8 +354,8 @@ test' '0;'
 + unset _mlshdbg
 + return 0
 ++ hostname
-+ echo 'HOSTNAME: gadi-gpu-v100-0012.gadi.nci.org.au'
-HOSTNAME: gadi-gpu-v100-0012.gadi.nci.org.au
++ echo 'HOSTNAME: gadi-gpu-v100-0093.gadi.nci.org.au'
+HOSTNAME: gadi-gpu-v100-0093.gadi.nci.org.au
 + echo 'PROJECT_DIR: /scratch/mu61/yl8164/quantum_control_rl_server'
 PROJECT_DIR: /scratch/mu61/yl8164/quantum_control_rl_server
 + [[ ! -d /scratch/mu61/yl8164/quantum_control_rl_server ]]
@@ -396,6 +396,8 @@ PROJECT_DIR: /scratch/mu61/yl8164/quantum_control_rl_server
 + TRAIN_STAGE1_EPOCHS=0
 + export TRAIN_STAGE2_EPOCHS=180
 + TRAIN_STAGE2_EPOCHS=180
++ export TRAIN_POINTS_STAGE3=1200
++ TRAIN_POINTS_STAGE3=1200
 + export PHASE_CLIP=3.141592653589793
 + PHASE_CLIP=3.141592653589793
 + export AMP_MIN=0.0
@@ -404,601 +406,586 @@ PROJECT_DIR: /scratch/mu61/yl8164/quantum_control_rl_server
 + AMP_MAX=2.0
 + export PPO_LR=3.0e-4
 + PPO_LR=3.0e-4
-+ export PPO_ENTROPY_REG=5.0e-4
-+ PPO_ENTROPY_REG=5.0e-4
-+ export PPO_INIT_STD=0.15
-+ PPO_INIT_STD=0.15
-+ export PPO_NUM_POLICY_UPDATES=8
-+ PPO_NUM_POLICY_UPDATES=8
-+ export NUM_EPOCHS=1000
-+ NUM_EPOCHS=1000
++ export PPO_ENTROPY_REG=2.0e-4
++ PPO_ENTROPY_REG=2.0e-4
++ export PPO_INIT_STD=0.12
++ PPO_INIT_STD=0.12
++ export PPO_NUM_POLICY_UPDATES=10
++ PPO_NUM_POLICY_UPDATES=10
++ export RANDOM_SEED=0
++ RANDOM_SEED=0
++ export NUM_EPOCHS=2000
++ NUM_EPOCHS=2000
 + export EVAL_INTERVAL=10
 + EVAL_INTERVAL=10
-+ export FINAL_REFINE_SAMPLES=256
-+ FINAL_REFINE_SAMPLES=256
-+ export FINAL_REFINE_ROUNDS=6
-+ FINAL_REFINE_ROUNDS=6
-+ export FINAL_REFINE_TOPK=16
-+ FINAL_REFINE_TOPK=16
++ export FINAL_REFINE_SAMPLES=1024
++ FINAL_REFINE_SAMPLES=1024
++ export FINAL_REFINE_ROUNDS=10
++ FINAL_REFINE_ROUNDS=10
++ export FINAL_REFINE_TOPK=32
++ FINAL_REFINE_TOPK=32
++ export FINAL_REFINE_TOP_EVAL_CENTERS=4
++ FINAL_REFINE_TOP_EVAL_CENTERS=4
++ export FINAL_REFINE_SEED=1234
++ FINAL_REFINE_SEED=1234
 + export FINAL_REFINE_SCALE=0.9
 + FINAL_REFINE_SCALE=0.9
 + export FINAL_REFINE_DECAY=0.6
 + FINAL_REFINE_DECAY=0.6
-+ export FINAL_REFINE_MIN_SIGMA=0.02
-+ FINAL_REFINE_MIN_SIGMA=0.02
++ export FINAL_REFINE_MIN_SIGMA=0.01
++ FINAL_REFINE_MIN_SIGMA=0.01
 + export FINAL_REFINE_USE_LOC_CENTER=1
 + FINAL_REFINE_USE_LOC_CENTER=1
 + export FINAL_REFINE_USE_TRAIN_CENTER=1
 + FINAL_REFINE_USE_TRAIN_CENTER=1
 + cd /scratch/mu61/yl8164/quantum_control_rl_server/examples/trapped_ion_cat
-+ SERVER_PID=995954
++ SERVER_PID=542225
 + SERVER_STARTUP_WAIT=600
 + PORT=5555
 + echo 'Waiting for server to open port 5555 (timeout 600s)...'
 + READY=0
 ++ seq 1 600
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
 + [[ 0 -eq 1 ]]
 + sleep 1
 + for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
-+ command -v ss
-+ ss -ltn
-+ grep -q :5555
-+ [[ 0 -eq 1 ]]
-+ sleep 1
-+ for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
-+ command -v ss
-+ ss -ltn
-+ grep -q :5555
-+ [[ 0 -eq 1 ]]
-+ sleep 1
-+ for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
-+ command -v ss
-+ ss -ltn
-+ grep -q :5555
-+ [[ 0 -eq 1 ]]
-+ sleep 1
-+ for _ in $(seq 1 "${SERVER_STARTUP_WAIT}")
-+ kill -0 995954
++ kill -0 542225
 + command -v ss
 + ss -ltn
 + grep -q :5555
@@ -1006,22 +993,22 @@ PROJECT_DIR: /scratch/mu61/yl8164/quantum_control_rl_server
 + break
 + [[ 1 -ne 1 ]]
 + STATUS=0
-+ kill 995954
-/local/spool/pbs/mom_priv/jobs/160227585.gadi-pbs.SC: line 137: kill: (995954) - No such process
++ kill 542225
+/local/spool/pbs/mom_priv/jobs/160326597.gadi-pbs.SC: line 141: kill: (542225) - No such process
 + true
-+ wait 995954
++ wait 542225
 + exit 0
 
 ======================================================================================
-                  Resource Usage on 2026-02-09 15:42:13:
-   Job Id:             160227585.gadi-pbs
+                  Resource Usage on 2026-02-09 19:06:26:
+   Job Id:             160326597.gadi-pbs
    Project:            mu61
    Exit Status:        0
-   Service Units:      13.60
-   NCPUs Requested:    12                  CPU Time Used: 00:24:09        
-   Memory Requested:   32.0GB                Memory Used: 10.78GB         
-   NGPUs Requested:    1                 GPU Utilisation: 7%              
+   Service Units:      23.83
+   NCPUs Requested:    12                  CPU Time Used: 00:43:27        
+   Memory Requested:   32.0GB                Memory Used: 11.23GB         
+   NGPUs Requested:    1                 GPU Utilisation: 9%              
                                          GPU Memory Used: 24.17GB         
-   Walltime Requested: 02:00:00            Walltime Used: 00:22:40        
+   Walltime Requested: 02:00:00            Walltime Used: 00:39:43        
    JobFS Requested:    50.0GB                 JobFS Used: 31.79KB         
 ======================================================================================
