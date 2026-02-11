@@ -26,7 +26,16 @@ class h5log:
         if not os.path.isdir(self.dir):
             os.mkdir(self.dir)
 
-        self.filename = os.path.join(self.dir,time.strftime('%Y%m%d.h5'))
+        # Allow external override so concurrent jobs do not write the same h5.
+        # If relative, resolve under self.dir.
+        filename_env = os.environ.get('H5LOG_FILENAME', '').strip()
+        if filename_env:
+            if os.path.isabs(filename_env):
+                self.filename = filename_env
+            else:
+                self.filename = os.path.join(self.dir, filename_env)
+        else:
+            self.filename = os.path.join(self.dir, time.strftime('%Y%m%d.h5'))
         # Open in append mode so the file is created if missing.
         f = h5py.File(self.filename, "a")
         if f.keys():

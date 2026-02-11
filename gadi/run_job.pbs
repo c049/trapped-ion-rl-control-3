@@ -40,6 +40,7 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-12}"
 export PYTHONUNBUFFERED=1
 export MPLCONFIGDIR=/tmp/mpl
 mkdir -p "${MPLCONFIGDIR}"
+export H5LOG_FILENAME="${H5LOG_FILENAME:-$(date +%Y%m%d)_${PBS_JOBID}.h5}"
 
 # Force JAX to prefer GPU when available
 export DQ_FORCE_GPU=1
