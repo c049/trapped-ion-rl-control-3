@@ -1,0 +1,8 @@
+SWEEP_ROOT=/scratch/mu61/yl8164/quantum_control_rl_server/examples/trapped_ion_binomial/penalty_sweep/penalty_sweep_20260221_161731
+PENALTIES=0,0.5,1,2,4
+BASELINE_NPZ=/scratch/mu61/yl8164/quantum_control_rl_server/examples/trapped_ion_binomial/checkpoint/final_pulses_best.npz
+161275274.gadi-pbs
+161275275.gadi-pbs
+161275276.gadi-pbs
+161275277.gadi-pbs
+161275279.gadi-pbs

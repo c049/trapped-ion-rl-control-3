@@ -1,0 +1,4 @@
+Sweep run: tag=p_0 penalty=0
+Sweep root: /scratch/mu61/yl8164/quantum_control_rl_server/examples/trapped_ion_binomial/penalty_sweep/penalty_sweep_20260221_161731
+Baseline NPZ: /scratch/mu61/yl8164/quantum_control_rl_server/examples/trapped_ion_binomial/checkpoint/final_pulses_best.npz
+Job ID: 161275274.gadi-pbs
