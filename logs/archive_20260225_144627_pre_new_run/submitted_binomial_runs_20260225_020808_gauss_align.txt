@@ -1,0 +1,4 @@
+SWEEP_ROOT=/scratch/mu61/yl8164/quantum_control_rl_server/examples/trapped_ion_binomial/penalty_sweep/lean_20260225_020808_gauss_align
+161528171.gadi-pbs
+161528172.gadi-pbs
+161528173.gadi-pbs

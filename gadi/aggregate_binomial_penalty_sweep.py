@@ -104,6 +104,46 @@ def _compare_gain_stats(compare_csv: str) -> Dict[str, float]:
     }
 
 
+def _stochastic_compare_stats(stochastic_compare_csv: str) -> Dict[str, float]:
+    if not os.path.exists(stochastic_compare_csv):
+        return {}
+    robust_row: Optional[Dict[str, float]] = None
+    baseline_row: Optional[Dict[str, float]] = None
+    with open(stochastic_compare_csv, "r", encoding="utf-8") as f:
+        r = csv.DictReader(f)
+        for row in r:
+            pulse = row.get("pulse", "").strip().lower()
+            parsed = {}
+            for k in [
+                "mean_score",
+                "std_score",
+                "mean_f_nom",
+                "std_f_nom",
+                "mean_f_rob",
+                "std_f_rob",
+                "mean_penalty",
+                "std_penalty",
+            ]:
+                try:
+                    parsed[k] = float(row[k])
+                except Exception:
+                    parsed[k] = float("nan")
+            if pulse == "robust":
+                robust_row = parsed
+            elif pulse == "baseline":
+                baseline_row = parsed
+    if robust_row is None or baseline_row is None:
+        return {}
+    return {
+        "stoch_score_robust": float(robust_row["mean_score"]),
+        "stoch_score_baseline": float(baseline_row["mean_score"]),
+        "stoch_score_gain": float(robust_row["mean_score"] - baseline_row["mean_score"]),
+        "stoch_frob_robust": float(robust_row["mean_f_rob"]),
+        "stoch_frob_baseline": float(baseline_row["mean_f_rob"]),
+        "stoch_frob_gain": float(robust_row["mean_f_rob"] - baseline_row["mean_f_rob"]),
+    }
+
+
 def _safe_float(v: str, default: float) -> float:
     try:
         return float(v)
@@ -170,6 +210,7 @@ def main() -> None:
         sweep = _read_sweep(os.path.join(run_dir, "dephasing_sweep_robust.csv"))
         sweep_stats = _sweep_stats(sweep)
         compare_stats = _compare_gain_stats(os.path.join(run_dir, "dephasing_compare.csv"))
+        stochastic_stats = _stochastic_compare_stats(os.path.join(run_dir, "stochastic_compare.csv"))
 
         row: Dict[str, float] = {
             "penalty": penalty,
@@ -186,6 +227,12 @@ def main() -> None:
             "compare_mean_gain": compare_stats.get("compare_mean_gain", float("nan")),
             "compare_min_gain": compare_stats.get("compare_min_gain", float("nan")),
             "compare_max_gain": compare_stats.get("compare_max_gain", float("nan")),
+            "stoch_score_robust": stochastic_stats.get("stoch_score_robust", float("nan")),
+            "stoch_score_baseline": stochastic_stats.get("stoch_score_baseline", float("nan")),
+            "stoch_score_gain": stochastic_stats.get("stoch_score_gain", float("nan")),
+            "stoch_frob_robust": stochastic_stats.get("stoch_frob_robust", float("nan")),
+            "stoch_frob_baseline": stochastic_stats.get("stoch_frob_baseline", float("nan")),
+            "stoch_frob_gain": stochastic_stats.get("stoch_frob_gain", float("nan")),
             "status": _safe_float(manifest.get("STATUS", "nan"), float("nan")),
         }
         row["run_dir"] = run_dir
@@ -211,6 +258,12 @@ def main() -> None:
         "compare_mean_gain",
         "compare_min_gain",
         "compare_max_gain",
+        "stoch_score_robust",
+        "stoch_score_baseline",
+        "stoch_score_gain",
+        "stoch_frob_robust",
+        "stoch_frob_baseline",
+        "stoch_frob_gain",
         "status",
         "run_dir",
     ]

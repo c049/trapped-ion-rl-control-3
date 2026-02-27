@@ -10,7 +10,7 @@ Primary pipelines:
 - `examples/trapped_ion_cat/` — cat-state preparation
 - `examples/trapped_ion_gkp/` — GKP state preparation (paper-aligned pipeline)
 - `examples/trapped_ion_binomial/` — binomial code state preparation, including
-  **quasi-static dephasing-robust training**
+  **quasi-static and stochastic dephasing-robust training**
 
 Additional small examples:
 - `examples/pi_pulse/`, `examples/pi_pulse_oct_style/` (QuTiP-based)
@@ -101,16 +101,26 @@ parses plots and metrics into `outputs/`.
 
 ## Dephasing-robust training (binomial)
 
-The binomial pipeline supports **quasi-static detuning robustness**:
-- `H_total = H_rsb/bsb + delta * n_hat`
-- `delta ~ Uniform[-0.05 * Omega, +0.05 * Omega]`
+The binomial pipeline supports both dephasing models:
+- quasi-static detuning: one `delta` per trajectory
+- stochastic detuning: `delta(t)` sampled each segment (or each step)
+
+Both use pure-state evolution with an added motional term:
+- `H_total = H_rsb/bsb + delta(t) * n_hat`
 
 Key environment variables (see `examples/trapped_ion_binomial/README.md` for full list):
 - `ROBUST_TRAINING=1`
-- `DEPHASE_MODEL=quasi_static`
+- `DEPHASE_MODEL=quasi_static` or `DEPHASE_MODEL=stochastic`
+- `OMEGA_RABI_HZ=2000`
+- `T_STEP=1e-5`
 - `DEPHASE_DETUNING_FRAC=0.05`
 - `DEPHASE_NOISE_SAMPLES_TRAIN`, `DEPHASE_NOISE_SAMPLES_EVAL`,
   `DEPHASE_NOISE_SAMPLES_REFINE`
+- robust default weighting: `DEPHASE_DETUNING_WEIGHTING=gaussian`
+- quasi-static sampler default: `DEPHASE_QUASI_SAMPLER=grid`
+- stochastic recommended: `DEPHASE_STOCHASTIC_STD_MODE=gamma_dt`, `DEPHASE_GAMMA=18.0`,
+  `DEPHASE_STOCHASTIC_CORRELATION=segment`
+- `LEARN_DURATION_SCALE=1` (default) to co-optimize a global duration/time scale
 - `ROBUST_NOMINAL_FID_FLOOR`, `ROBUST_FLOOR_PENALTY`
 - `ROBUST_COMPARE_BASELINE_NPZ` (generate robust-vs-baseline sweep)
 

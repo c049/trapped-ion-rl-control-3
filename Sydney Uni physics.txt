@@ -1,0 +1,402 @@
+2026年2月24日 下午 12:52|45分钟 50秒
+
+关键词:
+different states、cat state、same state、certain state、binomial states、state evolution、immune state、GKV state、state preparation、final real state、robust fidelity、other binomial state、more points、characteristic function points
+
+文字记录:
+说话人 1 00:01 
+Okay, yeah, okay.
+
+说话人 2 00:02 
+Yeah, so the presentation is, so what you're doing, so that's you can explain like the model free reinforcement learning, why and why it's important and also what why it's important to prepare personic slates in kind of computers. So a lot of this information would be in that will admin a Sevack paper. Cuz he's like, he's talking a lot about why they care about it, like what, what is useful for, like what this project is useful for. Cuz they wanna implement it on theirs on their quality computer. And then a lot of the same reasons would be why we wanna implement it on our product computer. So you can read that paper and then your presentation should just be like, okay, this is what we're doing. This is why we're doing it.
+
+说话人 2 00:52 
+We're preparing non classical basonic states because they're so, you know, they used for cubits, they used for sensing, they used for test fundamental physics like this. Lots of reasons why you want it. Yeah, do. Okay. And then, so that's just briefly. And the next would be why or how you did the project. So it's most, so it's gonna lot be a lot about like explaining what the procedure is.
+
+说话人 2 01:25 
+So like we have content gates which have parameters and we want to optimize these parameters. How do we optimize them? We use a quantum computer to give us information about what the gates are doing. Like the kind of computers telling us what, how the gates are appearing in a certain state. And then we use that information to feedback. To an agent, which then produces new parameters. And it's a like a reinforcement, you just wanna describe the reinforcement loop.
+
+说话人 2 01:52 
+So like what an EPOK is, what each, what the policy update does, all these sort of like details, because everyone will be really interested in your results. And so your results are really impressive, like how beautiful the States look at the end. But it's important that you show, we tell people how you do it because they want to know it. Like as soon as they see your results, that's like, oh, how did you do that? That's really cool. I wanna, we wanna learn how you do that. So everyone's very excited to find out how you do it and how it works. Alright. And then once you show how the optimization works, feel free to go into like a computer science, your computer science background and cuz a lot of people know the physics here, like a lot of people don't know the physics, but they don't know much about programming. Like I don't know much about programming. You know more about programming. Any like we're more like experimental, we more like know about lasers and things like that. So if you can teach people a little bit about reinforcement learning, like even if you think it's simple, it's worth going through that because not many people have that expertise. Like it's more, they more know about physics than programming or computer science. So yeah, like it like going through how reinforcement learning works and how the optimization works would be useful.
+
+说话人 1 03:33 
+To make a easier example to explain reference learning, do you mean?
+
+说话人 2 03:38 
+Yeah, I guess, well, not necessarily. You can still use the example of, you can still use what you did as an example. Okay, but just like explaining in detail, like the process of how it's happening. Yeah, because, yeah, this is good because like we know the example very well. Like we know how optimize it. We know how like optimization of gates works in principle, but we don't know how your code works and how like we don't really use reinforcement learning. We usually use like gradient based methods, like just simple optimization methods, but reinforcement lines a bit more complicated than that. So yeah, if so explaining that would be really cool because we would learn a lot. Yeah, so that that is is good. That would be good. And then finally, show your results. So like once you explain how it works, you can show your the characteristic functions and you can explain that you can kind of like tell a story like, yeah, like with the graph. So you can say like this is the characteristic function, this is the fidelity and her EPOK, you know, her graph that you have. And then you can also explain things like. Using the graph so you can explain things like how the characteristic function points are chosen. And you can also, if you feel like you have time, assign, not necessarily cuz it's not ready yet, we can explain nicer, like how you do noise robustness and these things.
+
+说话人 1 05:31 
+Yeah, so it's, should I make the cold snap pot? Should I make the code snipples? Oh, or just to use words to.
+
+说话人 2 05:48 
+This is what to describe it. Yeah, words and like pictures.
+
+说话人 1 05:51 
+Okay. Yeah, walks and picture.
+
+说话人 2 05:53 
+Okay. Because we can always like, cuz we have like, we have access, why I have access to the code. So I can always like ask, like, I can always ask you.
+
+说话人 1 06:03 
+Okay. Okay.
+
+说话人 2 06:05 
+Like, like, cuz there'll be questions as well, like people at the end, people ask you questions.
+
+说话人 1 06:09 
+And then, so at the end, some people will ask me, yeah, okay, so that's okay. I'll be there to like, okay, yeah, I'm afraid of I can't describe clear.
+
+说话人 2 06:21 
+Yeah, that's fine. That's fine. I think everyone like, you know, okay, so how many people us?
+
+说话人 1 06:28 
+Maybe eight. Okay, not too much. Yeah, not sure. Should I say the face robots training or just say the reference learning?
+
+说话人 2 06:44 
+The first stage, people will know, I think people will know what you mean by defeating training. They'll know how you do it because they know how I did it also. They should know how. Yeah. So I think the most important part is the reinforcement learning.
+
+说话人 1 06:59 
+Okay, so I will also say this one.
+
+说话人 2 07:02 
+Yeah, you can say like we also did dephasing trust. And I think if you say that, people know how you do it.
+
+说话人 1 07:08 
+Okay. So should I say the statistic? Does domestic result, do you have I, if you have it, yeah, if you feel like I don't have the result at until.
+
+说话人 2 07:24 
+Yeah, yeah, like if you get the result by the time of the presentation, Alex, thank you. And include. Okay, but the really important thing is explaining how it works. Cuz like, yeah, you don't need to be focused too much on the results. You have a really good. You don't need to be focused on getting more results because I think everyone will assume that once you have, there's, so the results that you have now, everyone will assume that it works. Like everyone will assume that robustness works because the results you have now are good. Cuz it's like if you can recreate what we like, if you can recreate the results in my table, would you do? Then I think people assume that all the other results, we'll come through as well. Does that make sense? Like, yeah, yeah, like, like, because what you have right now works so well. I think people assume that everything else works. So I think the, so the most important part is the, is communicating what you learn to the rest of the group so that we can all so that everyone understands how works. And then the important thing as well is like when you're communicating results, especially in like research, in research is getting people excited to help work on your project. So it's like, it's not no pressure. Like, yeah, but I'm saying that like one thing about research is that the most important thing often is not like how impressive your results are. Well, that's important, but it's like getting people excited to work on different to help you and to like get interested in it and to collaborate with you. That's like, that's kind of the goal of research presentation. So it's kind of like, oh, this is what I'm doing. I think it's very cool. You should also work on it. And people say like, oh yeah, that is very cool. I'll work on, I'll help you work on it. Like, that's kind of the, and the best way to do that is to. Kind of explain how worse are people in their brain understands what you're doing. Yeah, you can definitely overdo it. Like you can definitely go really technical into like writing equations and saying, and that's what you shouldn't do that or like showing code and like lines and lines of code. You can go overboard like too much and like showing too much. The perfect presentation is like a sweet spot, which is telling a story of how things work, but not like, not too technical. Like, yeah, so it's just showing someone enough so they understand, so they think they understand and then showing good results. That's like the, that's like a perfect presentation. Okay, hopefully that's helpful. It's good. So it's gonna be, it's very hard to do a good presentation.
+
+说话人 1 10:30 
+Yeah, yeah, yeah, that's fine. I will try my best. Okay, awesome.
+
+说话人 2 10:34 
+I know, you know.
+
+说话人 1 10:35 
+So I will say the 3 state's result were just binomial and Kate, because the GKP identity is no, that's fine. It's fine. Okay.
+
+说话人 2 10:47 
+Yeah, if GKP is interesting as well, especially it's especially the presentations. If something doesn't work and you're not sure why, it's good to. That's also interesting for people because like, oh, maybe I can help solve that problem or maybe I have an idea for why it doesn't work. Cuz the JKP fidelity is like quite high already. I think it's not really a problem. With, yeah, I think it's a small bug. We're not a small bug, but like a small change I think should fix it because yeah, yeah, I'm not too worried about that. Okay.
+
+说话人 1 11:29 
+So I don't need to change the GKP.
+
+说话人 2 11:32 
+No, to just present. Yeah, you can say that it helps it a different.
+
+说话人 1 11:35 
+Yeah, okay. Just use current results. So next Tuesday.
+
+说话人 2 11:43 
+Do you think you have enough time?
+
+说话人 1 11:45 
+Oh, yeah, I'm free.
+
+说话人 2 11:47 
+Yeah, okay. But if you feel like you need more time to prepare, just let me know.
+
+说话人 1 11:55 
+Okay, to be honest, I have made the Powerpoint. Cool. Yeah, but it's not specific. It's just a, yeah, this is just like a draft. Yeah, I, yeah, I can have a look if you yeah, but it just a preview. It just preview. It's not too much information.
+
+说话人 2 12:24 
+Is there a way to 2 full screen.
+
+说话人 1 12:28 
+Full screen.
+
+说话人 2 12:29 
+Yeah, full screen.
+
+说话人 1 12:30 
+Is this because I don't download it. So it adjust preview.
+
+说话人 2 12:41 
+It's in lockdown, right?
+
+说话人 1 12:43 
+I'm not download. So it's the most. It's, yeah. Okay.
+
+说话人 2 12:50 
+I see. Okay.
+
+说话人 1 12:54 
+We need to change too much. Yeah. Yeah. It's still too boring, I think.
+
+说话人 2 13:01 
+No, I mean, you just start. It's okay.
+
+说话人 1 13:16 
+All free.
+
+说话人 2 13:18 
+Okay, a certain beginning, right?
+
+说话人 1 13:19 
+So it's not explained how it works too much.
+
+说话人 2 13:25 
+That's fine. I think what you, I think this is good that you've done a, that you've done a draft cuz it's really helpful for me to see what you're thinking. Okay, so this is your, okay, so in order frame, reaper, etc. And control pipelines, cat, GKP, venerable, firstly, basic request. Okay, cool. So you got the, this is your cap set result. Yeah, this is really good. It's good. First, fine. Okay, what's actually okay? This might be too much. Yeah, you don't need to explain the record.
+
+说话人 1 14:08 
+I, yeah. Oh, I get it. I don't need to mention any code. Many mention any code and any folder, any father. Yeah, don't, yeah, don't, yeah, don't need to mention it to change it to war toward use word to describe the result.
+
+说话人 2 14:23 
+Yeah, it's more like, yeah, words and like conceptual things. So like how things work and like what you. And pictures. It's a lot of pictures and words. Yeah, mostly pictures and words.
+
+说话人 1 14:35 
+Okay, guys.
+
+说话人 2 14:39 
+So this stuff to the physics setup paper wall know what you're talking about. I'm gonna show you an example of my presentations. I'll just get my computer and I'll send you. I'll just quickly get up. Okay, I'll come back. Okay.
+
+说话人 2 15:26 
+Okay. The computer is so messy. So yeah, cut. Sorry. It's very picture based and like GIF, like it's all okay. So this is like, this is doing the pulse, the showing over time and how it works, how it gets to the instant. This is like the banner meal. That's what I, yeah, so just go back is binomial.
+
+说话人 1 16:44 
+Yeah, it's the other binomial state.
+
+说话人 2 16:48 
+So that's stuff. Yeah, my first slide is just how it evolves, etc.
+
+说话人 1 16:52 
+Look, that's cool. So cool.
+
+说话人 2 16:53 
+Yeah, one more time. Eh, cool. So I start with a reason for why we wanna do personic keywords. And so I say that if you don't use bosonic cubits, you need all of these. To do quantum error correction, you need all of these black dots will be a cubit, and you use them altogether to encode one protected cubic. And I say one, 1 way of doing error correction is to do this. The other way is to just use one system. And how many costs later. Okay, so that's like, that's my main motivation is saying instead of using all of these, let's just use one of these.
+
+说话人 2 17:41 
+To yeah, first is like to say, okay, why do people care about this problem? Then I start explaining some details. So this is kind of technical cuz it's for it's for physicists that don't know much about this. So don't you know, this is just technical details. And then I say, we wanna do with bosonic codes, we wanna do state preparation, logical operations like gates and air correction. And then I say explain how the preparation works. This is all stuff that you don't need to do because everyone knows. By explaining how works. Like you have this, the red side band, the blue side band, you change their phases and then you prepare the state and you have a cost function for the optimization. Let's talk about the characteristic function and how we can learn about the state this way. Talk about the experimental system, and then I show the results. So this is the GKK studies to the binomial states. And then this is a robust. So, and I show. Two movies or two gifts of how robust pulses look when you add noise. Okay, so it's just that they're kind of, they kind of look different, but then they become the same state at the end. And that means robustness. Cuz what noise is taking you one way, the other, the other here, noise is taking you other way, but it's still robust. So they come, it makes the same state at the end.
+
+说话人 2 19:32 
+And I talk about something, okay, this is more complicated, but Gates and I said, this is everyone that helped me. Okay, yeah, so I'll send this to you just as like an example. Like this is how much picture, this is how many pictures are like, it's all pictures.
+
+说话人 1 19:49 
+It's a good example. Yeah, it's okay.
+
+说话人 2 19:52 
+Thousand, but yeah, it's very.
+
+说话人 2 20:11 
+Which one is it? A and a.
+
+说话人 1 20:18 
+Okay, should I make the reference or such like related experiment works if you want, it's professional to do that. Yeah, I think it's too.
+
+说话人 2 20:37 
+Yeah, yeah, yeah, yeah. If you want, if you like. Only reference things that you actually talk about. Like if you talk about, like if you talk about volumes of X paper, definitely reference that. If you talk about like you, you can, if you want to like reference reinforcement learning or like some of the papers involved with that, you can as well. Like it looks professional. Yeah, but you don't have, but it's not that important that it's, I guess it's like people like to see it cuz it means that you're like, yeah, I said, yeah, maybe, yeah, just do it. Okay. Anything you talk about, you should reference. Okay. Okay. I wanna keep looking at this cuz this is pretty good.
+
+说话人 1 21:35 
+So maybe I can make a more, maybe I can make a final, yeah, final Powerpoint. Yeah, before this weekend and send it to you.
+
+说话人 2 21:51 
+Yeah, yeah, yeah, that'll be helpful. Okay.
+
+说话人 1 21:53 
+Because this one, it just start, I think. Yeah, yeah, it's too much like photo or yeah, people maybe. Yes, yeah, that's so fine.
+
+说话人 2 22:04 
+I still, I think this is good. Still like just for me as well, just to action primary will take you.
+
+说话人 1 22:20 
+Such like if I mention the PPO, I also need to introduce the PPO algorithm. Yeah. Okay. Just briefly. Okay, yeah.
+
+说话人 1 22:37 
+So such like the parameter should I need to mention, I think it can be helpful.
+
+说话人 2 22:43 
+Can we help? So like you have to explain what an APAC is. Oh, sorry. Oh, sorry. Yeah, explain on APAC is things like entropy, maybe not to pretend. Yeah, maybe not so important. This is important, like number of policy updates. Oh, and like if you use different parameters for different states, I think it's interesting to explain why. Oh, to explain like why different states need different parameters. Cuz that would be interesting to people, I think. Okay, civic client architecture, this is interesting to me, but maybe not for the, I think Dan explaining dynamics actually is useful. Yeah, this stuff likes just, you can just say that you use dynamics and say that you don't use Q2. Cuz I think people will be interested in why dynamics is better than Q2. You can just say that it like allows parallelization. So for that, yeah, yeah, I think mention that you did it on a GPU.
+
+说话人 1 24:28 
+The benefit is often dynamics.
+
+说话人 2 24:31 
+Yeah, cashless examples. Okay, people will wanna know the how the characteristic function reward works. So how it works. Yeah, so like, you know, each time you're sampling different measurement points, so kind of like how different, how the measurement points are chosen. Cuz I saw you made that gift. So that would be interesting. Cuz like it looks at, it looks like the points kind of converge onto the state after a while, which is, but the gift is just showing the gift.
+
+说话人 1 25:20 
+If you look at the GKP, the GKP, okay, the gift, the giant is just showing the 3 stage. At the first stage is the top K, Top K, Top K, the most top K in pretend points. And the second stage, well, en will increase the. Point number. Okay. And in the last stage, in the third stage, there are more, much more points we'll consider to avoid Plato. To our plat. So it just shows this, yeah, shows this process.
+
+说话人 2 26:18 
+Yeah, I think it's interesting because this actually looks like a GKV state, looks like Jacque's day. Yeah, like the eval point, the train points are clustering around the important parts of the GKV state. Right. So that's, I think that's kind of interesting to see it to show as well.
+
+说话人 1 26:38 
+Okay, so it's useful to show it.
+
+说话人 2 26:42 
+Like how, how, how the how assemble points work. Okay. Okay. Yeah, you get back to the. Okay, cool. Yeah, you don't have to explain the webinar function. You can say that the original paper is a bigger function. That's enough to say, okay, and that this is like, what you're doing is showing that it can work for trap diamonds. That's, I think that's important to show it is to say that like. What work you're doing is for track down. So the similar thing, but for Chapter 1, sampling distribution, importance, weights. Yep. So this stuff is important. Yeah, cat state. You don't need to explain the cat state too much.
+
+说话人 1 27:34 
+Okay, so I don't need to mention the code because I will understand it.
+
+说话人 2 27:39 
+People know. Yeah, you can say like, you can say this stuff like enbose on 30 alpha cat 2 and steps 1,20 and seconds to step 10. Okay, I use 10 sec. I use 10 seconds. Yeah, 10 seconds. Okay, yep. So this part is important. Like, yeah, and then the pulse, obviously, it's also important. Chicken pasted. It's, yeah, good. So this stuff, so GKP is a bit more complicated than cap, right? Cuz it's got these like cares about the latter small like lattice mixes, critical stability. So like that kind of stuff is interesting. And then, yeah, you have a nice fidelity that's really good.
+
+说话人 2 28:36 
+Better milestone. Oh, and she, what happened here?
+
+说话人 1 28:44 
+I think it's. Don't learn something. Yes, get dropped.
+
+说话人 2 28:49 
+Okay.
+
+说话人 2 29:03 
+And from Philadelphia Mint.
+
+说话人 2 29:13 
+Yeah, this is important. And then you can show, yeah, you can show this and say, we're still working on it. And then HPC environment, you don't have to relieve echo. It's good construction. Okay.
+
+说话人 1 29:59 
+Yeah, I will try to finish it and before this weekend.
+
+说话人 2 30:02 
+Yeah, yeah, I'll have a look at it. And then on Monday, do you wanna practice presenting it?
+
+说话人 1 30:11 
+Yeah, okay.
+
+说话人 2 30:11 
+To me. Yeah, okay. Okay. So yeah, I'll have it. I look on Friday, I'll give you some notes and on Monday. Yeah, and we have, we'll have practice and then I can ask you some questions just like to prepare. And then on Tuesday I'll organize a 10 minute, okay, it's 10 minutes enough, do you think? Or would you prefer more time?
+
+说话人 1 30:35 
+I think almost.
+
+说话人 2 30:37 
+Okay, so 15 minutes. Yeah, you can go over if you want on Monday. Just do you like, there's no like people that the main goes for now. So you can take as much time as you want. But yeah, on Monday, we can practice it if it's 10 or 15, like if it's somewhere in between 10 and 15, that's fine.
+
+说话人 1 30:57 
+Okay, maybe we can have a try at first. Yeah, to try. Yeah, to get the time.
+
+说话人 2 31:03 
+Okay, cool. Great work on a on a on this. Yeah, it's good at you how to think about it already.
+
+说话人 1 31:12 
+That's good.
+
+说话人 2 31:16 
+Still no response from I think the request goes out at 2:30 for the gatty hours today.
+
+说话人 1 31:31 
+Yeah, okay. It's okay. So quick. So I l keep going to doing the stochastic.
+
+说话人 2 31:42 
+If you, yeah, if you have time. Yeah, only if you have time. Cuz you, cuz now of course, work is started. So you know that comes first.
+
+说话人 1 31:50 
+Yeah, right. But the first week, yeah, first week almost free.
+
+说话人 2 31:55 
+Okay. Yeah, yeah, yeah, that's true. There's not that many classes, right?
+
+说话人 1 31:59 
+Yeah, just have one tutorial on for Friday, one session on Friday.
+
+说话人 2 32:04 
+Okay. What courses you taking this semester? I didn't, I forgot to check. You know, I'm just interested in my computer.
+
+说话人 1 32:14 
+Yeah, almost computer.
+
+说话人 2 32:17 
+Therefore, yeah, introduction to artificial intelligence. It'll be fun. Probably you've gone a lot of changes. I think my friend did artificial intelligence at Sydney Uni, like this course. And he said it was really outdated, but this was like really a dead head. Yeah, a dead, like really old, like old content.
+
+说话人 1 32:46 
+Oh, yeah, yeah, really old. The this one is the artificial intelligence. Yeah, introduction. Yeah, yeah, it's too old.
+
+说话人 2 32:54 
+Yeah, I feel like now, like it's so advanced that no one really knows what's going on. Like it's just so hard to keep up with. So it's interesting. I'd, yeah, be interesting to see.
+
+说话人 1 33:09 
+So the best, I think the best way to learn something is to do in, yeah, to do in that. Yeah, yeah, to learn it in practice. Yeah, exactly.
+
+说话人 2 33:18 
+Right. So now, yeah, now you're an expert in quantity as well. Yeah, okay. Yeah, okay. If you wanna stay here, that's fine. I'm just gonna get back to the office and continue working. But you can also go artificial wherever.
+
+说话人 1 33:31 
+So I will, I will have a I will eating out later. Okay. And go to fishing.
+
+说话人 2 33:39 
+Okay, cool.
+
+说话人 1 33:40 
+If you have something to want to ask me, yeah, I, I can feel free to.
+
+说话人 2 33:45 
+Oh yeah, I think it's okay. Only if you wanna to ask me questions. I think if you're okay with like, yeah, if you have anything to ask me about the stochastic, caustic, sarcastic film robustness, oh, okay, then I'll be here. So if you wanna work here and yeah, ask me questions. This one.
+
+说话人 1 34:07 
+Okay, I have one question. Yeah, let me find. Yeah, I remember yesterday. Yes, you say that at the best, the robust fidelity under the 0 noisy is the same as the ask the ideally, yeah, ideally asked. So at now, the robust pose under the 0, yeah, noisy is lower than the baseline. Yes. So should I to should I improve that?
+
+说话人 2 34:52 
+Yeah, keep it. I think that if you have time, yeah, the I think the way that you improve it is to use the Gaussian waiting. Oh, that we talked about. Okay. Yeah, I think about yesterday, I, that's what I would say is most important. And then if that doesn't work, then we have to start optimizing the time.
+
+说话人 1 35:23 
+Yeah, job optimizing the time to lower the noisy. Yeah, yeah. Or in. To lower, yeah, thank influence.
+
+说话人 2 35:33 
+Yeah, to lower the influence. Or it might turn out that, so, okay, so there's a lot of work on knowledge investments in quantum computing. And usually, okay, 9 times 9% of the time, the pulses that are robust usually take longer than the tendon on robust pulse. So if I say like, okay, create, if I tell an optimizer to create a final real state in the shortest time, it will do that. But then if I ask it, it will take like, I don't know, one second. If I ask an optimizer to prepare about an immune state, that's for us to do phasing. It will usually take longer if I add that additional robustness. So what that means is that usually optimization likes to use time as a parameter to play with. And so if you allow time to be optimized, one thing that you do is that you, if you reduce the time, that means that dephasing can. Fill out time to be parameter means that it can find short solutions so that defeating doesn't ruin the state too much. Another thing that it does is it means that if you need a long solution, then it has flexibility to find that long solution if you allow time to be optimized. And the way that you allow timely optimized is to change the amplitude.
+
+说话人 2 37:10 
+So right now you set a fixed Omega. But before we had a, like an Omega was varied every. 4 Omega was permanent. Yeah, so now we just need to set Omega to be a variable. Cuz if Omega is variable, then dephasing is also variable. Then the detuning changes with it should do this one.
+
+说话人 2 38:20 
+Yeah, you just allow maker to be variable and then that means that it can, it means that it can, if it increases, that means that it's trying to increase. So that it's okay. Let me show you what I do.
+
+说话人 2 39:09 
+So I use queue control and I have.
+
+说话人 2 39:23 
+So what I do is I set. The duration to be optimizable. So it's like saying that I set each segment to be optimizable. Okay, it's impressive. And then what I do is I don't actually multiply the segments by a parameter, but I multiply the hamiltonian at the end by that parameter, by the overall duration. And what that does is, yeah, it means that the.
+
+说话人 2 40:29 
+What it effectively does is like if you write the evolution, like if you when you calculate the treasury equation to say the state evolution, it's always equal to the hamiltonian times time. And so if I reduce the time, that means in if I go, if I calculate the shining equation, I reduce the time, it's saying that the pulse is happening. Sure. So I optimize time that way. That makes sense?
+
+说话人 1 41:02 
+No, probably not understand a lot.
+
+说话人 2 41:06 
+Okay. Okay.
+
+说话人 1 41:10 
+So set this variable to optimization the time.
+
+说话人 2 41:14 
+Okay. So I have this like, so what you can do is like have this final scaling factor in the Hamiltonian, which you multiply globally. And that means that you're. Yeah, that means that you're reducing the duration that way.
+
+说话人 1 41:44 
+Okay, yeah. So use this way to improve the fat entity. Okay.
+
+说话人 2 41:55 
+I can send you this code as well. Okay, this is just example code, but I think tragedy will understand what's going on. Yeah, like if you say like how is duration optimized here, then it will understand what's going on.
+
+说话人 1 42:18 
+Okay, yes.
+
+说话人 2 42:20 
+And then it will explain it to you.
+
+说话人 1 42:23 
+So it will be helpful. Okay.
+
+说话人 2 42:28 
+Yeah, I think it should be adaptable to you character.
+
+说话人 2 42:42 
+Okay. Okay. Anything else that's important to say? I don't think, I don't know. Yeah, nothing else.
+
+说话人 1 42:51 
+Yeah, if yeah, if I meet question, I can ask you. Thank you so much.
+
+说话人 2 42:58 
+Yeah, no worries. Thank you. I'll see what. Okay. I have got a few, but I manage the problem current and.
+
+说话人 1 44:39 
+one is this morning and then someone is in the tube so i。yeah， i have a cooking concern。concern。 from your friend。 no from further。 but i wasn' t sure you know if the location is working yet。
+
+说话人 1 45:16 
+and whether it' s OK， we stayed there make sure that it is OK。exactly。
+
+说话人 1 45:40 
+and then my plan was to you know study。
+

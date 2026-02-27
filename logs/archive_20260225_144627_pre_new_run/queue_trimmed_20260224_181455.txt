@@ -1,0 +1,24 @@
+Queue trimmed after user review (avoid over-submission)
+Date: 2026-02-24
+
+Cancelled / stopped:
+- 161275279.gadi-pbs (old run)
+- 161498203.gadi-pbs
+- 161498204.gadi-pbs
+- 161498205.gadi-pbs
+- 161498206.gadi-pbs
+- 161498244.gadi-pbs
+- 161498257.gadi-pbs
+
+Kept / active minimal chain:
+1) 161498202.gadi-pbs  [RUNNING]
+   - quasi_static, gaussian weighting, penalty=0
+   - root: examples/trapped_ion_binomial/penalty_sweep/penalty_sweep_20260224_center_align
+
+2) 161498478.gadi-pbs  [HOLD, afterok 161498202]
+   - quasi_static, gaussian weighting, penalty=1.0
+   - root: examples/trapped_ion_binomial/penalty_sweep/lean_20260224
+
+3) 161498484.gadi-pbs  [HOLD, afterok 161498478]
+   - stochastic gamma_dt, penalty=1.0
+   - root: examples/trapped_ion_binomial/penalty_sweep/lean_20260224

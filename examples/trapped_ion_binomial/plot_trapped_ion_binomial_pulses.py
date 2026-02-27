@@ -52,7 +52,7 @@ def main():
     )
     parser.add_argument("--h5", default=None, help="Path to the h5 log file.")
     parser.add_argument("--n-steps", type=int, default=120, help="Total steps.")
-    parser.add_argument("--t-step", type=float, default=10.0, help="Time step.")
+    parser.add_argument("--t-step", type=float, default=1.0e-5, help="Time step (seconds).")
     parser.add_argument(
         "--output",
         default=None,
@@ -75,11 +75,16 @@ def main():
     phi_b_seg = _get_or_default(locs, "phi_b", n_segments, 0.0)
     amp_r_seg = _get_or_default(locs, "amp_r", n_segments, 1.0)
     amp_b_seg = _get_or_default(locs, "amp_b", n_segments, 1.0)
+    duration_scale = float(
+        np.asarray(locs.get("duration_scale", np.array([1.0])), dtype=float).reshape(-1)[0]
+    )
 
     phi_r = _expand_segments(phi_r_seg, args.n_steps)
     phi_b = _expand_segments(phi_b_seg, args.n_steps)
     amp_r = _expand_segments(amp_r_seg, args.n_steps)
     amp_b = _expand_segments(amp_b_seg, args.n_steps)
+    amp_r_drive = amp_r * duration_scale
+    amp_b_drive = amp_b * duration_scale
 
     t = np.arange(args.n_steps) * args.t_step
 
@@ -91,15 +96,16 @@ def main():
     axes[0, 1].plot(t, phi_b)
     axes[0, 1].set_title("phi_b(t)")
 
-    axes[1, 0].plot(t, amp_r)
-    axes[1, 0].set_title("amp_r(t)")
+    axes[1, 0].plot(t, amp_r_drive)
+    axes[1, 0].set_title("amp_r(t) * duration_scale")
     axes[1, 0].set_xlabel("time")
     axes[1, 0].set_ylabel("relative amplitude")
 
-    axes[1, 1].plot(t, amp_b)
-    axes[1, 1].set_title("amp_b(t)")
+    axes[1, 1].plot(t, amp_b_drive)
+    axes[1, 1].set_title("amp_b(t) * duration_scale")
     axes[1, 1].set_xlabel("time")
 
+    fig.suptitle(f"duration_scale={duration_scale:.6f}", y=1.01)
     fig.tight_layout()
 
     output_path = args.output

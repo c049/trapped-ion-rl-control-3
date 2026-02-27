@@ -32,6 +32,9 @@ PHASE_ACTION_SCALE = float(os.environ.get("PHASE_ACTION_SCALE", str(np.pi)))
 AMP_ACTION_SCALE = float(os.environ.get("AMP_ACTION_SCALE", "1.0"))
 LEARN_AMP_R = os.environ.get("LEARN_AMP_R", "0") == "1"
 LEARN_AMP_B = os.environ.get("LEARN_AMP_B", "0") == "1"
+LEARN_DURATION_SCALE = os.environ.get("LEARN_DURATION_SCALE", "1") == "1"
+DURATION_INIT_SCALE = float(os.environ.get("DURATION_INIT_SCALE", "1.0"))
+DURATION_ACTION_SCALE = float(os.environ.get("DURATION_ACTION_SCALE", "0.25"))
 INIT_PULSES_NPZ = os.environ.get("INIT_PULSES_NPZ", "").strip()
 INIT_PULSE_BLEND = float(os.environ.get("INIT_PULSE_BLEND", "1.0"))
 
@@ -69,6 +72,7 @@ init_phi_r = list(np.zeros(n_segments))
 init_phi_b = list(np.zeros(n_segments))
 init_amp_r = list(np.ones(n_segments))
 init_amp_b = list(np.ones(n_segments))
+init_duration_scale = [DURATION_INIT_SCALE]
 
 def _segment_phase_from_full(arr, n_segments):
     vals = np.asarray(arr, dtype=float).reshape(-1)
@@ -102,6 +106,14 @@ def _segment_amp_from_full(arr, n_segments):
 
 if not np.isfinite(INIT_PULSE_BLEND) or INIT_PULSE_BLEND < 0.0 or INIT_PULSE_BLEND > 1.0:
     raise ValueError(f"INIT_PULSE_BLEND must be in [0,1], got {INIT_PULSE_BLEND}")
+if not np.isfinite(DURATION_INIT_SCALE) or DURATION_INIT_SCALE <= 0.0:
+    raise ValueError(
+        f"DURATION_INIT_SCALE must be finite and > 0, got {DURATION_INIT_SCALE}"
+    )
+if not np.isfinite(DURATION_ACTION_SCALE) or DURATION_ACTION_SCALE <= 0.0:
+    raise ValueError(
+        f"DURATION_ACTION_SCALE must be finite and > 0, got {DURATION_ACTION_SCALE}"
+    )
 
 if INIT_PULSES_NPZ:
     pulse_path = (
@@ -120,10 +132,15 @@ if INIT_PULSES_NPZ:
         raw_phi_b = np.asarray(pulse_data["phi_b"], dtype=float).reshape(-1)
         raw_amp_r = np.asarray(pulse_data["amp_r"], dtype=float).reshape(-1)
         raw_amp_b = np.asarray(pulse_data["amp_b"], dtype=float).reshape(-1)
+        raw_duration_scale = np.asarray(
+            pulse_data["duration_scale"] if "duration_scale" in pulse_data else [DURATION_INIT_SCALE],
+            dtype=float,
+        ).reshape(-1)
         init_phi_r_loaded = _segment_phase_from_full(raw_phi_r, n_segments)
         init_phi_b_loaded = _segment_phase_from_full(raw_phi_b, n_segments)
         init_amp_r_loaded = _segment_amp_from_full(raw_amp_r, n_segments)
         init_amp_b_loaded = _segment_amp_from_full(raw_amp_b, n_segments)
+        init_duration_scale_loaded = float(raw_duration_scale[0]) if raw_duration_scale.size else DURATION_INIT_SCALE
     init_phi_r = list(
         (1.0 - INIT_PULSE_BLEND) * np.asarray(init_phi_r, dtype=float)
         + INIT_PULSE_BLEND * init_phi_r_loaded
@@ -140,9 +157,12 @@ if INIT_PULSES_NPZ:
         (1.0 - INIT_PULSE_BLEND) * np.asarray(init_amp_b, dtype=float)
         + INIT_PULSE_BLEND * init_amp_b_loaded
     )
+    init_duration_scale = [
+        float((1.0 - INIT_PULSE_BLEND) * init_duration_scale[0] + INIT_PULSE_BLEND * init_duration_scale_loaded)
+    ]
     print(
         "Warm-start enabled: INIT_PULSES_NPZ=%s blend=%.3f "
-        "(source lens: phi_r=%d phi_b=%d amp_r=%d amp_b=%d -> segments=%d)"
+        "(source lens: phi_r=%d phi_b=%d amp_r=%d amp_b=%d duration=%d -> segments=%d)"
         % (
             pulse_path,
             INIT_PULSE_BLEND,
@@ -150,6 +170,7 @@ if INIT_PULSES_NPZ:
             len(raw_phi_b),
             len(raw_amp_r),
             len(raw_amp_b),
+            len(raw_duration_scale),
             n_segments,
         )
     )
@@ -162,6 +183,7 @@ action_script = {
     "phi_b": [init_phi_b],
     "amp_r": [init_amp_r],
     "amp_b": [init_amp_b],
+    "duration_scale": [init_duration_scale],
 }
 
 action_spec = {
@@ -169,6 +191,7 @@ action_spec = {
     "phi_b": specs.TensorSpec(shape=[n_segments], dtype=tf.float32),
     "amp_r": specs.TensorSpec(shape=[n_segments], dtype=tf.float32),
     "amp_b": specs.TensorSpec(shape=[n_segments], dtype=tf.float32),
+    "duration_scale": specs.TensorSpec(shape=[1], dtype=tf.float32),
 }
 
 action_scale = {
@@ -176,6 +199,7 @@ action_scale = {
     "phi_b": phase_scale,
     "amp_r": amp_scale,
     "amp_b": amp_scale,
+    "duration_scale": [DURATION_ACTION_SCALE],
 }
 
 to_learn = {
@@ -183,6 +207,7 @@ to_learn = {
     "phi_b": os.environ.get("LEARN_PHI_B", "1") == "1",
     "amp_r": LEARN_AMP_R,
     "amp_b": LEARN_AMP_B,
+    "duration_scale": LEARN_DURATION_SCALE,
 }
 
 if FAST_SMOKE:
@@ -211,6 +236,9 @@ rl_params = {
     "amp_action_scale": AMP_ACTION_SCALE,
     "learn_amp_r": LEARN_AMP_R,
     "learn_amp_b": LEARN_AMP_B,
+    "learn_duration_scale": LEARN_DURATION_SCALE,
+    "duration_init_scale": DURATION_INIT_SCALE,
+    "duration_action_scale": DURATION_ACTION_SCALE,
     "init_pulses_npz": INIT_PULSES_NPZ,
     "init_pulse_blend": INIT_PULSE_BLEND,
     "actor_fc_layers": ACTOR_FC_LAYERS,

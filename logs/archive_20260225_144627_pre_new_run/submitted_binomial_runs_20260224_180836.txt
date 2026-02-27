@@ -1,0 +1,24 @@
+Submitted on 2026-02-24
+
+Baseline compare pulse:
+- examples/trapped_ion_binomial/checkpoint/nonrobust_baseline_pulses.npz (copied from final_pulses_best.npz)
+
+Existing queue/resumed:
+- 161275279.gadi-pbs  (old sweep p_4; now running)
+
+New quasi-static penalty sweep (center alignment):
+Sweep root:
+- examples/trapped_ion_binomial/penalty_sweep/penalty_sweep_20260224_center_align
+Jobs:
+- 161498202.gadi-pbs  p_0
+- 161498203.gadi-pbs  p_0p5 (afterok 161498202)
+- 161498204.gadi-pbs  p_1   (afterok 161498203)
+- 161498205.gadi-pbs  p_2   (afterok 161498204)
+- 161498206.gadi-pbs  p_4   (afterok 161498205)
+
+Scheduled stochastic follow-up:
+Sweep root:
+- examples/trapped_ion_binomial/penalty_sweep/stochastic_followup_20260224
+Jobs:
+- 161498244.gadi-pbs  stoch_p1_gamma_dt          (afterok 161498206)
+- 161498257.gadi-pbs  stoch_p1_gamma_dt_gaussian (afterok 161498244)

@@ -1,0 +1,2754 @@
+[Vassili Matsos] 13:53:41
+Um, you have to evolve density matrices.
+
+[Vassili Matsos] 13:53:46
+But, uh, we want to avoid doing density matrices at all costs, because they…
+
+[Vassili Matsos] 13:53:51
+it's computationally expensive, and instead we want to do… we want to evolve pure states.
+
+[Vassili Matsos] 13:53:55
+Instead of density matrices.
+
+[Vassili Matsos] 13:53:57
+Um, so the way that…
+
+[Vassili Matsos] 13:53:59
+you can sort of, like, simulate, or you can kind of, like…
+
+[Vassili Matsos] 13:54:07
+Uh, you can…
+
+[Vassili Matsos] 13:54:09
+mimic or recreate the Lombardian simulation on pure states.
+
+[Vassili Matsos] 13:54:14
+Uh, is… is by just random… randomly sampling
+
+[Vassili Matsos] 13:54:17
+um, defacing noise instead. So…
+
+[Vassili Matsos] 13:54:21
+instead of doing a limb body and decay, what we just say, okay, my gamma… I set a defacing rate,
+
+[Vassili Matsos] 13:54:29
+Um, and I sample…
+
+[Vassili Matsos] 13:54:32
+noise from a standard deviation, where the standard deviation is equal to the square root of
+
+[Vassili Matsos] 13:54:39
+Um, 2 times the…
+
+[Vassili Matsos] 13:54:40
+defacing rate divided by the segment time.
+
+[Vassili Matsos] 13:54:45
+Um, so yeah, it's just… it's very simple, I just wanted to, like, say it in words.
+
+[Vassili Matsos] 13:54:50
+So, all it is, is that you… if you…
+
+[Vassili Matsos] 13:54:53
+you have a defasing rate?
+
+[Brace Liu] 13:54:56
+Yeah.
+
+[Vassili Matsos] 13:54:56
+You have a pulse segment duration, which comes from…
+
+[Vassili Matsos] 13:55:01
+I guess, like, the…
+
+[Vassili Matsos] 13:55:03
+the segment time that we… that we choose.
+
+[Vassili Matsos] 13:55:06
+And then you simply just say that the standard deviation is equal to this
+
+[Vassili Matsos] 13:55:10
+dysfunction. Um…
+
+[Vassili Matsos] 13:55:13
+And that means that every time… so when you evaluate your… like, when you simulate your polls…
+
+[Vassili Matsos] 13:55:20
+you sample from…
+
+[Vassili Matsos] 13:55:21
+Gaussian distribution using this…
+
+[Vassili Matsos] 13:55:24
+noise-centered deviation, and you add it to the Hamiltonian every time.
+
+[Vassili Matsos] 13:55:31
+Um, yeah.
+
+[Vassili Matsos] 13:55:32
+So it's very, it's very simple. This is the code that I use to… to do that.
+
+[Brace Liu] 13:55:38
+Yeah.
+
+[Vassili Matsos] 13:55:39
+Um… yeah.
+
+[Vassili Matsos] 13:55:41
+So I'll send this to you now.
+
+[Vassili Matsos] 13:55:44
+So let's
+
+[Vassili Matsos] 13:55:46
+I'll send a simpler version, because it has…
+
+[Vassili Matsos] 13:55:53
+Uh, yeah, I'll send this.
+
+[Vassili Matsos] 13:55:54
+This is just a… this is just a sim… this is a, um…
+
+[Vassili Matsos] 13:55:58
+This code does pull simulation, so it's very… it would be quite similar to…
+
+[Vassili Matsos] 13:56:02
+something that you've already implemented?
+
+[Vassili Matsos] 13:56:05
+Um, I'll send this to you.
+
+[Brace Liu] 13:56:07
+Yeah, maybe.
+
+[Vassili Matsos] 13:56:13
+Okay, so the important… the important part is just the…
+
+[Vassili Matsos] 13:56:17
+is just adding a Hamiltonian, like a delta, a dagger A term.
+
+[Vassili Matsos] 13:56:22
+Um, where you sample from a random…
+
+[Vassili Matsos] 13:56:25
+from an open distribution, whether standard deviation is equal to this.
+
+[Vassili Matsos] 13:56:33
+Yeah. So, um…
+
+[Vassili Matsos] 13:56:38
+what I wanted to say, also, is that the…
+
+[Vassili Matsos] 13:56:42
+the standard deviation that we set.
+
+[Vassili Matsos] 13:56:45
+So the gamma, um, are you familiar with, like, the defasing rate?
+
+[Vassili Matsos] 13:56:53
+Okay.
+
+[Brace Liu] 13:56:54
+I don't know, not your family. Yeah.
+
+[Vassili Matsos] 13:56:55
+Not too familiar, okay. So the, uh…
+
+[Vassili Matsos] 13:56:58
+Yeah, so… defacing rate is, like…
+
+[Vassili Matsos] 13:57:04
+Uh…
+
+[Vassili Matsos] 13:57:06
+It just means, like, the strength of your noise, of your defacing noise.
+
+[Brace Liu] 13:57:10
+Oh, yeah, I know that.
+
+[Vassili Matsos] 13:57:12
+Yeah, um, and it's… it's measured in terms of…
+
+[Vassili Matsos] 13:57:17
+uh… like, how many…
+
+[Vassili Matsos] 13:57:19
+how many defect… like, how many defasing events per second is how it's measured?
+
+[Vassili Matsos] 13:57:27
+Um…
+
+[Vassili Matsos] 13:57:29
+So, it's…
+
+[Vassili Matsos] 13:57:31
+So, for our hardware, we have, like, we know that our, for example, our defasing rate is 18 Hz, so that means 18…
+
+[Vassili Matsos] 13:57:38
+18 times per second.
+
+[Vassili Matsos] 13:57:40
+we should expect some defacing event.
+
+[Vassili Matsos] 13:57:44
+Um…
+
+[Vassili Matsos] 13:57:47
+And, uh…
+
+[Vassili Matsos] 13:57:51
+We also need to make sure that
+
+[Vassili Matsos] 13:57:55
+like, defacing noise.
+
+[Vassili Matsos] 13:57:58
+Um…
+
+[Vassili Matsos] 13:58:00
+will become less important depending on how big Omega is. So you know Omega is like the rabby rate?
+
+[Brace Liu] 13:58:06
+Yeah, yeah, yeah.
+
+[Vassili Matsos] 13:58:07
+So, for larger Robbie, right?
+
+[Vassili Matsos] 13:58:10
+It means that defacing is less important.
+
+[Vassili Matsos] 13:58:13
+Um, because if you… if you get things done faster,
+
+[Vassili Matsos] 13:58:17
+That means there's less time for defacing events to happen.
+
+[Vassili Matsos] 13:58:22
+And there's less time that they'll ruin your state.
+
+[Vassili Matsos] 13:58:28
+Yeah, so it's important that we set
+
+[Brace Liu] 13:58:28
+Oh, yeah.
+
+[Vassili Matsos] 13:58:31
+When we set Gamma, we also set the right Rabbi rate.
+
+[Vassili Matsos] 13:58:34
+For the experiment… for the experiment.
+
+[Brace Liu] 13:58:38
+Uh, so in the experiment, we don't tell the deficiency noise, because if we do it so so fast we can ignore it.
+
+[Vassili Matsos] 13:58:47
+Uh, that is true, yeah. So, we wouldn't have to care about it if we could do it so fast.
+
+[Vassili Matsos] 13:58:52
+But unfortunately, we can't do it that far. Like, we can't do it that fast.
+
+[Brace Liu] 13:58:54
+Oh.
+
+[Vassili Matsos] 13:58:57
+Yep. Um, so we have to… we have to care about it.
+
+[Vassili Matsos] 13:59:00
+But what I meant… I mean, that's… what you said is right?
+
+[Vassili Matsos] 13:59:03
+But what I'm saying… what I'm also saying is that we have to get the Robi right.
+
+[Vassili Matsos] 13:59:07
+We have to make sure the code is getting the Rabi right.
+
+[Vassili Matsos] 13:59:10
+Correct. Um, so…
+
+[Vassili Matsos] 13:59:13
+the defacing rate.
+
+[Brace Liu] 13:59:13
+Oh, yeah.
+
+[Vassili Matsos] 13:59:16
+is… so that we're… that we're simulating something that's as close to the experiment as possible.
+
+[Vassili Matsos] 13:59:21
+So I'm just saying that the Robbie rate and the defacing…
+
+[Vassili Matsos] 13:59:24
+Right, have to be the same.
+
+[Vassili Matsos] 13:59:27
+Or, like, have to be the same as Zeek Forever.
+
+[Vassili Matsos] 13:59:31
+Um…
+
+[Vassili Matsos] 13:59:32
+Yeah. So…
+
+[Vassili Matsos] 13:59:35
+Uh…
+
+[Vassili Matsos] 13:59:36
+Yeah, so…
+
+[Vassili Matsos] 13:59:40
+Um…
+
+[Vassili Matsos] 13:59:44
+Yeah, if you want, you can, um…
+
+[Vassili Matsos] 13:59:46
+What was I gonna say?
+
+[Vassili Matsos] 13:59:49
+Have you got your… if your code is…
+
+[Vassili Matsos] 13:59:54
+like, if you can look at it now, I can…
+
+[Vassili Matsos] 13:59:56
+Maybe we can have a look at the Robbie right together?
+
+[Vassili Matsos] 13:59:59
+Lisa.
+
+[Brace Liu] 14:00:00
+Yeah, yeah, I put it to the repo.
+
+[Vassili Matsos] 14:00:02
+Okay, okay, so I can have a look.
+
+[Vassili Matsos] 14:00:04
+From here.
+
+[Vassili Matsos] 14:00:10
+Um…
+
+[Brace Liu] 14:00:16
+Do you want me to send that for the repo link again.
+
+[Vassili Matsos] 14:00:21
+Oh, that's good. Maybe… is it easy for you to show your screen?
+
+[Brace Liu] 14:00:26
+Oh, yeah, okay. About trying to find aid first.
+
+[Vassili Matsos] 14:00:27
+Oh, yeah, I'll do that.
+
+[Vassili Matsos] 14:00:30
+Yeah, yeah.
+
+[Vassili Matsos] 14:00:33
+I'm just gonna close my window. It's a bit loud.
+
+[Brace Liu] 14:00:58
+Please wait for them. I will open, please.
+
+[Vassili Matsos] 14:00:59
+Yeah, yeah, that's okay, that's fair.
+
+[Brace Liu] 14:01:19
+Oh, so I need to share my screen. Okay.
+
+[Vassili Matsos] 14:01:22
+Yeah.
+
+[Vassili Matsos] 14:01:39
+Yeah, I can see, yeah.
+
+[Brace Liu] 14:01:39
+Can you see this? Oh, yeah. Okay.
+
+[Brace Liu] 14:01:53
+The main function is in the same in the same function.
+
+[Brace Liu] 14:02:02
+Yeah. and Easter song.
+
+[Brace Liu] 14:02:13
+He's ahead of you. All of these mem function.
+
+[Vassili Matsos] 14:02:18
+For, um…
+
+[Vassili Matsos] 14:02:21
+for the simulation.
+
+[Brace Liu] 14:02:22
+Yeah, presentation.
+
+[Vassili Matsos] 14:02:23
+This is
+
+[Vassili Matsos] 14:02:26
+this code creates the, um…
+
+[Vassili Matsos] 14:02:32
+the binomial state, right?
+
+[Brace Liu] 14:02:35
+Yeah, yeah, yeah, for the binomial stage.
+
+[Vassili Matsos] 14:02:38
+Yeah. Um, and…
+
+[Vassili Matsos] 14:02:42
+Can I have a look at the part where you add the detuning?
+
+[Vassili Matsos] 14:02:47
+like, the…
+
+[Vassili Matsos] 14:02:52
+Where you simulate with the detuning.
+
+[Brace Liu] 14:02:52
+Okay.
+
+[Vassili Matsos] 14:02:56
+like, you know how you add… you have the quasi-static defacing?
+
+[Brace Liu] 14:03:01
+Oh, yeah, right.
+
+[Brace Liu] 14:03:18
+Oh, I think you said, yeah.
+
+[Vassili Matsos] 14:03:20
+Okay, yeah, yeah.
+
+[Vassili Matsos] 14:03:29
+Procussion
+
+[Vassili Matsos] 14:03:32
+Uh, so what does this do?
+
+[Brace Liu] 14:03:37
+I think it's done. Oh, I don't know how to… how to describe it. It's such like.
+
+[Vassili Matsos] 14:03:44
+Okay.
+
+[Brace Liu] 14:03:47
+definition of the… destination of the determining process.
+
+[Brace Liu] 14:03:54
+It can get the value and the other for another, and it will return the result and jump to the result code.
+
+[Vassili Matsos] 14:04:04
+Okay, okay.
+
+[Brace Liu] 14:04:07
+Yeah, so should I do this. I can scroll down because you know.
+
+[Vassili Matsos] 14:04:09
+Yep.
+
+[Vassili Matsos] 14:04:12
+Yeah.
+
+[Vassili Matsos] 14:04:15
+Okay, so when you…
+
+[Brace Liu] 14:04:16
+Yeah, it's the…
+
+[Vassili Matsos] 14:04:19
+Yeah. So you have…
+
+[Brace Liu] 14:04:21
+Yeah.
+
+[Vassili Matsos] 14:04:22
+You have motion detuning set to zero.
+
+[Vassili Matsos] 14:04:25
+It says that you have emotional detuning set to the… set to detuning, and then for every time step,
+
+[Vassili Matsos] 14:04:31
+better emotional, yeah, okay.
+
+[Brace Liu] 14:04:32
+Yeah.
+
+[Vassili Matsos] 14:04:34
+S&L. Now we just need to update the code so that it samples.
+
+[Vassili Matsos] 14:04:38
+for every time… for every time step, it samples from…
+
+[Vassili Matsos] 14:04:43
+a, uh, a Gaussian distribution.
+
+[Vassili Matsos] 14:04:46
+of detratings.
+
+[Brace Liu] 14:04:49
+Okay. So we need to change it.
+
+[Vassili Matsos] 14:04:53
+Yes, for the stochastic version. I think make a separate…
+
+[Vassili Matsos] 14:04:57
+Um, like, make a simulation func… like, make a…
+
+[Vassili Matsos] 14:05:01
+a script for…
+
+[Vassili Matsos] 14:05:04
+quasi-static?
+
+[Vassili Matsos] 14:05:07
+But, like, and then make a different one for the stochastic, because, like, they kind of…
+
+[Vassili Matsos] 14:05:13
+different… different machinery.
+
+[Vassili Matsos] 14:05:18
+like, they're quite, uh, I guess, different processes.
+
+[Brace Liu] 14:05:24
+Okay.
+
+[Vassili Matsos] 14:05:25
+Yeah. Um, but then you also set… so Omega R and Omega B… sorry, just to remind you, I haven't… haven't had a look at this.
+
+[Vassili Matsos] 14:05:33
+So I'm not… I'm not too quick, but Omega… where do you set Omega R and Omega B?
+
+[Brace Liu] 14:05:39
+Omega R and omega P.
+
+[Vassili Matsos] 14:05:42
+Yeah.
+
+[Vassili Matsos] 14:05:45
+like, like, when you call the simulation function, what do you usually set it to?
+
+[Brace Liu] 14:05:49
+is done. Mr. Robby, wait, and uh…
+
+[Brace Liu] 14:05:59
+Yeah, and here? Yeah, adhere.
+
+[Vassili Matsos] 14:06:00
+Oh, yeah.
+
+[Vassili Matsos] 14:06:02
+Two items.
+
+[Vassili Matsos] 14:06:06
+Uh, interesting.
+
+[Vassili Matsos] 14:06:11
+Uh, so you use the time of 1.
+
+[Vassili Matsos] 14:06:14
+Okay.
+
+[Brace Liu] 14:06:14
+Yeah.
+
+[Vassili Matsos] 14:06:17
+Just, okay, yeah, yeah, yeah.
+
+[Vassili Matsos] 14:06:19
+Makes sense.
+
+[Brace Liu] 14:06:20
+And I set the alternative. The plenary. Or a matter to… to is lost. I said a lost value. And if and if it lowers and the lowest value, the quantity will.
+
+[Vassili Matsos] 14:06:30
+Yeah.
+
+[Brace Liu] 14:06:38
+will increase. You'll see, yeah, use this method to.
+
+[Vassili Matsos] 14:06:39
+Okay.
+
+[Brace Liu] 14:06:43
+to improve the pandemic, robust pandemic.
+
+[Vassili Matsos] 14:06:46
+Yeah, okay, I see.
+
+[Vassili Matsos] 14:06:49
+Um, yeah, so what I was saying before about the…
+
+[Vassili Matsos] 14:06:52
+about how the defasing rate…
+
+[Vassili Matsos] 14:06:56
+And Omega are really important to set, correct?
+
+[Vassili Matsos] 14:06:59
+Like…
+
+[Vassili Matsos] 14:07:02
+So, um…
+
+[Vassili Matsos] 14:07:03
+Omega…
+
+[Vassili Matsos] 14:07:06
+So in our experiment, omega is actually…
+
+[Vassili Matsos] 14:07:11
+Uh, usually, like, 2 pi times 2000.
+
+[Vassili Matsos] 14:07:16
+And then the time…
+
+[Vassili Matsos] 14:07:19
+is usually, like, 1 millisecond.
+
+[Vassili Matsos] 14:07:22
+So it's… what you've done here is fine. It, like, it works fine, because you just have to res… everything is, like,
+
+[Vassili Matsos] 14:07:28
+scaled.
+
+[Vassili Matsos] 14:07:30
+Like, it doesn't matter what the, like,
+
+[Vassili Matsos] 14:07:32
+You can have a…
+
+[Vassili Matsos] 14:07:35
+a long time of one second, and then a small omega.
+
+[Vassili Matsos] 14:07:38
+Which is exactly the same as having a small time of 1 millisecond, and then a large omega.
+
+[Vassili Matsos] 14:07:43
+So it doesn't matter. What you've done is… what you've done is correct.
+
+[Vassili Matsos] 14:07:46
+It's just that when we add the defacing rate,
+
+[Vassili Matsos] 14:07:50
+Um, because I'm only… because I'm only telling you, oh, like, the experiment.
+
+[Vassili Matsos] 14:07:55
+has a defrazing rate of 18Hz.
+
+[Vassili Matsos] 14:07:58
+then it becomes important.
+
+[Vassili Matsos] 14:08:00
+if I… if I tell you the defacing rate of the experiment,
+
+[Vassili Matsos] 14:08:03
+then it becomes important to have the omega of the experiment.
+
+[Vassili Matsos] 14:08:06
+Because those…
+
+[Vassili Matsos] 14:08:09
+Um, the defacing rate and omega are both
+
+[Vassili Matsos] 14:08:13
+Uh…
+
+[Vassili Matsos] 14:08:15
+like, they're both…
+
+[Vassili Matsos] 14:08:17
+important to get right, because…
+
+[Vassili Matsos] 14:08:20
+Omega tells you how fast you can…
+
+[Vassili Matsos] 14:08:23
+create the state, and defacing tells you how quickly a def…
+
+[Vassili Matsos] 14:08:26
+defacing will ruin the state, so it's important to get the two…
+
+[Vassili Matsos] 14:08:30
+Right.
+
+[Vassili Matsos] 14:08:32
+Does that make sense? Yeah.
+
+[Vassili Matsos] 14:08:34
+Um, so…
+
+[Vassili Matsos] 14:08:36
+If you set… if you use the code that I sent you,
+
+[Vassili Matsos] 14:08:40
+You just have to make sure that you set Omega to be…
+
+[Vassili Matsos] 14:08:47
+Um…
+
+[Vassili Matsos] 14:08:49
+large. Or, like, realistic in the experiment.
+
+[Vassili Matsos] 14:08:54
+Um, so I can tell you… I can tell you that now. So, I may… I'll… maybe I'll write it in Slack, so…
+
+[Vassili Matsos] 14:08:59
+for us.
+
+[Vassili Matsos] 14:09:03
+Um…
+
+[Vassili Matsos] 14:09:07
+I put it in Slack.
+
+[Vassili Matsos] 14:09:11
+So for us, omega is equal to… so this is, like, omega R and omega B.
+
+[Vassili Matsos] 14:09:20
+is equal to 2…
+
+[Vassili Matsos] 14:09:26
+2000.
+
+[Vassili Matsos] 14:09:28
+I'm sorry, I misspelled Omega.
+
+[Vassili Matsos] 14:09:38
+And then… and then one more question I had was that… so, you know when you… so, when you write, um…
+
+[Vassili Matsos] 14:09:44
+Uh, time t step?
+
+[Vassili Matsos] 14:09:49
+Is that… is that per segment, or is that in total?
+
+[Brace Liu] 14:09:49
+Is that…
+
+[Brace Liu] 14:09:54
+Uh, it's the per segment.
+
+[Vassili Matsos] 14:09:56
+Ah, per segment, okay.
+
+[Vassili Matsos] 14:09:58
+Yes, so our…
+
+[Vassili Matsos] 14:10:01
+So that means that if you increase the amount of segments, you increase the amount of
+
+[Vassili Matsos] 14:10:05
+time in total.
+
+[Brace Liu] 14:10:06
+Yeah, right.
+
+[Vassili Matsos] 14:10:07
+Okay, okay. Yeah, so usually…
+
+[Vassili Matsos] 14:10:10
+when we run the optimization.
+
+[Vassili Matsos] 14:10:16
+We say something like…
+
+[Vassili Matsos] 14:10:20
+We set the…
+
+[Vassili Matsos] 14:10:25
+Um…
+
+[Vassili Matsos] 14:10:28
+We kind of do this thing where we… we set…
+
+[Vassili Matsos] 14:10:30
+We change the time.
+
+[Vassili Matsos] 14:10:38
+Well, actually, okay.
+
+[Vassili Matsos] 14:10:40
+When we do the optimization, we actually…
+
+[Vassili Matsos] 14:10:43
+add Omega as a separate…
+
+[Vassili Matsos] 14:10:44
+optimization variable.
+
+[Vassili Matsos] 14:10:50
+I mean, the reason we do that is because…
+
+[Brace Liu] 14:10:51
+Yeah.
+
+[Vassili Matsos] 14:10:55
+if you change omega,
+
+[Vassili Matsos] 14:10:57
+Now, tell me if you don't agree with this.
+
+[Vassili Matsos] 14:10:59
+If you change omega, it's equivalent to changing time.
+
+[Vassili Matsos] 14:11:05
+So, if I… if I double… if I double the omega, that means I'm doubling the…
+
+[Vassili Matsos] 14:11:12
+It actually means that I'm dividing the time by 2.
+
+[Brace Liu] 14:11:13
+Double in the time.
+
+[Vassili Matsos] 14:11:19
+If they can do the… if I can increase the power,
+
+[Brace Liu] 14:11:19
+Oh, okay.
+
+[Vassili Matsos] 14:11:22
+But I guess, like, increasing the power. That means I can…
+
+[Vassili Matsos] 14:11:25
+If I increase the power by 2, that means I don't have to take as much time to prepare the state.
+
+[Vassili Matsos] 14:11:32
+So what… what we do in the experiment…
+
+[Brace Liu] 14:11:34
+Okay.
+
+[Vassili Matsos] 14:11:35
+So what we do in the optimization, usually.
+
+[Vassili Matsos] 14:11:39
+is we set optimi- we set the Omega…
+
+[Vassili Matsos] 14:11:42
+to be a variable.
+
+[Vassili Matsos] 14:11:45
+And we… we add a reward from… we add a reward function.
+
+[Vassili Matsos] 14:11:49
+So, we add a reward so that omega is…
+
+[Vassili Matsos] 14:11:54
+Um, as small as possible.
+
+[Vassili Matsos] 14:11:59
+Meaning…
+
+[Vassili Matsos] 14:12:02
+the time that it takes.
+
+[Vassili Matsos] 14:12:05
+is…
+
+[Vassili Matsos] 14:12:07
+So, we added, we added a reward at the time is as small as possible. So when you add up all the segments…
+
+[Vassili Matsos] 14:12:13
+That… that is as small as possible by changing… by changing omega.
+
+[Vassili Matsos] 14:12:19
+Uh, it's kind of, yeah, it
+
+[Vassili Matsos] 14:12:22
+Um, it's just… it's just easier to change omega than it is to change the time step for us.
+
+[Vassili Matsos] 14:12:27
+During the optimization.
+
+[Vassili Matsos] 14:12:32
+Yeah.
+
+[Brace Liu] 14:12:32
+Okay. So, in simulation, it's the same as the experiment.
+
+[Vassili Matsos] 14:12:41
+Say that again?
+
+[Brace Liu] 14:12:43
+Uh, in simulation, it's the same as the experiment. So I also need to use this method.
+
+[Vassili Matsos] 14:12:49
+Yeah, yeah, yeah. I mean, you don't have… you don't have to, it's just that we find that, like,
+
+[Vassili Matsos] 14:12:54
+Like, one… one thing that helps…
+
+[Vassili Matsos] 14:12:56
+in the experiment, the thing that helps a lot is to have
+
+[Vassili Matsos] 14:13:01
+the preparation take the smallest amount of time possible.
+
+[Vassili Matsos] 14:13:04
+Because the longer… the longer that you take to create the state,
+
+[Vassili Matsos] 14:13:08
+the more defacing you'll have.
+
+[Vassili Matsos] 14:13:12
+the more error… the more errors you'll have.
+
+[Vassili Matsos] 14:13:16
+Um, because…
+
+[Vassili Matsos] 14:13:17
+you know, quantum states like to…
+
+[Vassili Matsos] 14:13:21
+they're very sensitive to noise, so if you… if you…
+
+[Vassili Matsos] 14:13:24
+create the state faster.
+
+[Vassili Matsos] 14:13:26
+That means you'll have less noise.
+
+[Vassili Matsos] 14:13:28
+And you'll have a better… you'll have a better quality state.
+
+[Brace Liu] 14:13:36
+Okay.
+
+[Vassili Matsos] 14:13:40
+Um… yeah.
+
+[Brace Liu] 14:13:41
+So… so it… so it will speed up.
+
+[Vassili Matsos] 14:13:46
+Yes, the time will… the time will decrease.
+
+[Brace Liu] 14:13:50
+Oh, okay. I'm loyalty, please.
+
+[Vassili Matsos] 14:13:52
+Yeah, if you set… if you set a reward so that the time is… the time gets smaller.
+
+[Brace Liu] 14:13:59
+Okay.
+
+[Vassili Matsos] 14:13:59
+Yeah. So it's, yeah, it's weird. So we have this extra variable, which is basically time.
+
+[Vassili Matsos] 14:14:05
+Well, it's Omega, but omega is equivalent to time.
+
+[Vassili Matsos] 14:14:11
+Well, you know, it's really, it's really time.
+
+[Vassili Matsos] 14:14:13
+That we set the variable.
+
+[Vassili Matsos] 14:14:19
+Yeah.
+
+[Brace Liu] 14:14:23
+Yeah.
+
+[Vassili Matsos] 14:14:24
+Um…
+
+[Vassili Matsos] 14:14:26
+But yeah, the most… I mean, but that's…
+
+[Vassili Matsos] 14:14:28
+We can think about that later. The most important thing is that we have to set omega to be…
+
+[Vassili Matsos] 14:14:34
+Right. And if we change omega, so…
+
+[Vassili Matsos] 14:14:37
+For example, Omega, for you, is like…
+
+[Vassili Matsos] 14:14:41
+J pi times 0.00 to 2.
+
+[Vassili Matsos] 14:14:42
+But then for us, so for the experiment, it's gonna be 2 pi times 2,000.
+
+[Vassili Matsos] 14:14:47
+Which means if you increase the… the…
+
+[Vassili Matsos] 14:14:50
+a megabyte, a thousand, you have to decrease the time by a thousand.
+
+[Vassili Matsos] 14:14:56
+So it's a very small…
+
+[Vassili Matsos] 14:14:58
+change that you have to implement.
+
+[Brace Liu] 14:15:01
+Okay.
+
+[Vassili Matsos] 14:15:02
+Yeah. Um, but that means, once you implement that change,
+
+[Vassili Matsos] 14:15:05
+You can use the defasing rate that we have on the experiment, and it should work.
+
+[Vassili Matsos] 14:15:10
+Fine.
+
+[Brace Liu] 14:15:13
+Okay.
+
+[Vassili Matsos] 14:15:13
+Yeah. And the… and also, the experiment… so the simulation, the optimization that you already did, where you…
+
+[Vassili Matsos] 14:15:20
+where you had a quasi-static detuning that was 5% of the…
+
+[Vassili Matsos] 14:15:26
+Um…
+
+[Vassili Matsos] 14:15:27
+Of the… of the Robby, right? Is also fine, because you… because it's…
+
+[Vassili Matsos] 14:15:30
+You said to be 5%, so it… yeah. Everything you so far is correct. I'm just saying that, like, if we want to do this extra,
+
+[Vassili Matsos] 14:15:37
+Um, stochastic model. We have to set the values to be the same.
+
+[Brace Liu] 14:15:44
+Okay.
+
+[Vassili Matsos] 14:15:47
+Okay, do you have any questions?
+
+[Vassili Matsos] 14:15:51
+And talking at you for, like,
+
+[Vassili Matsos] 14:15:53
+many…
+
+[Brace Liu] 14:15:55
+Oh. Because the… because the robots, the identity is lower, is lower than the… No noisy pandemic research. There is a trade off.
+
+[Brace Liu] 14:16:09
+So I want to ask… So how small the trade-off is for such a way?
+
+[Brace Liu] 14:16:18
+Such 9bi is on just a lot noisy. And.
+
+[Brace Liu] 14:16:23
+Identity will increase. Like, from 0.99 to 0.95.
+
+[Brace Liu] 14:16:30
+Yeah, so it's a big… it's a big difference, or it's just a small difference.
+
+[Vassili Matsos] 14:16:30
+Mm-hmm.
+
+[Vassili Matsos] 14:16:36
+Yeah, um… I think that… so I had the same issue…
+
+[Vassili Matsos] 14:16:42
+that you had.
+
+[Vassili Matsos] 14:16:45
+Where I was seeing that there was a trade-off.
+
+[Vassili Matsos] 14:16:49
+So when I first… when I first was doing robust pulses, I saw that
+
+[Brace Liu] 14:16:49
+Yeah, it is.
+
+[Vassili Matsos] 14:16:54
+there was this trade-off. Like, you sent… you sent that, um…
+
+[Vassili Matsos] 14:16:57
+in one of your… you've got a…
+
+[Vassili Matsos] 14:17:00
+Yeah, this, this, this figure.
+
+[Vassili Matsos] 14:17:03
+all want to compare, right? Two-phase and compare.
+
+[Vassili Matsos] 14:17:05
+Yeah, so I also saw the same thing, where I have this, um…
+
+[Brace Liu] 14:17:06
+Yeah.
+
+[Vassili Matsos] 14:17:09
+this trade-off. What fixed it for me was this…
+
+[Vassili Matsos] 14:17:13
+was this, uh, the waiting.
+
+[Vassili Matsos] 14:17:15
+So, when you sample from…
+
+[Vassili Matsos] 14:17:17
+you have this uniform sampling.
+
+[Vassili Matsos] 14:17:22
+Um, between the detunings, right?
+
+[Vassili Matsos] 14:17:25
+Yeah, so I had the same thing, but then I also weighted the optimization
+
+[Brace Liu] 14:17:25
+Yeah.
+
+[Vassili Matsos] 14:17:30
+with a Gaussian distribution, so that if I set… so for the…
+
+[Vassili Matsos] 14:17:36
+for the, um…
+
+[Vassili Matsos] 14:17:39
+for the…
+
+[Vassili Matsos] 14:17:40
+Part of the optimization where I was simulating with a large detuning,
+
+[Vassili Matsos] 14:17:46
+that affected…
+
+[Vassili Matsos] 14:17:49
+the optimization.
+
+[Vassili Matsos] 14:17:51
+with… like, I weighted the importance of that.
+
+[Vassili Matsos] 14:17:56
+of that simulation.
+
+[Vassili Matsos] 14:17:58
+with a Gaussian distribution.
+
+[Brace Liu] 14:18:03
+Okay, so you… so it's the… so it's the other one distribution model.
+
+[Vassili Matsos] 14:18:03
+Yeah.
+
+[Vassili Matsos] 14:18:09
+the, uh…
+
+[Brace Liu] 14:18:10
+2 mainland.
+
+[Vassili Matsos] 14:18:12
+it's just that, like, what…
+
+[Vassili Matsos] 14:18:14
+for me, what took away this trade-off.
+
+[Vassili Matsos] 14:18:17
+was waiting the, uh…
+
+[Vassili Matsos] 14:18:20
+was waiting the detunings.
+
+[Vassili Matsos] 14:18:23
+during the optimization.
+
+[Vassili Matsos] 14:18:26
+So if I sampled from a lot… if I sampled with a large detuning…
+
+[Vassili Matsos] 14:18:30
+of 5% of the…
+
+[Vassili Matsos] 14:18:33
+Robbie Ray. Then for that…
+
+[Vassili Matsos] 14:18:37
+for that simulation.
+
+[Vassili Matsos] 14:18:41
+Um, the…
+
+[Vassili Matsos] 14:18:44
+the, uh, agent would not… would…
+
+[Vassili Matsos] 14:18:47
+would weight the importance of that.
+
+[Vassili Matsos] 14:18:52
+uh, like…
+
+[Vassili Matsos] 14:18:53
+The agent would weigh the importance of that simulation.
+
+[Vassili Matsos] 14:18:57
+with a Gaussian…
+
+[Vassili Matsos] 14:19:01
+um… waiting.
+
+[Vassili Matsos] 14:19:05
+Yeah, it's hard to explain. Um…
+
+[Brace Liu] 14:19:05
+All committee.
+
+[Vassili Matsos] 14:19:09
+Because I haven't seen your… I haven't seen your code in that much detail yet, but I assume that, like,
+
+[Vassili Matsos] 14:19:15
+like, when… so, maybe…
+
+[Vassili Matsos] 14:19:18
+correct me if I'm wrong, but when you sample from a uniform distribution of detunings, correct?
+
+[Vassili Matsos] 14:19:24
+Yeah, and then you… you simulate all of…
+
+[Brace Liu] 14:19:24
+Yeah, yeah, yeah.
+
+[Vassili Matsos] 14:19:27
+the pulse with all those detunings at the same time.
+
+[Vassili Matsos] 14:19:31
+Or, you know, not at the same time, but you simulate.
+
+[Vassili Matsos] 14:19:34
+The pulse, and then you get the characteristic reward.
+
+[Vassili Matsos] 14:19:39
+And then you add up all the characteristic rewards.
+
+[Brace Liu] 14:19:39
+Yeah.
+
+[Brace Liu] 14:19:43
+Yeah, I think so.
+
+[Vassili Matsos] 14:19:45
+But, yeah, but when you add up all the characteristic rewards,
+
+[Vassili Matsos] 14:19:48
+you should wait.
+
+[Vassili Matsos] 14:19:51
+you should weight those characteristic rewards by Gaussian. So, for the large… for the…
+
+[Vassili Matsos] 14:19:57
+characteristic rewards taken with a large detuning.
+
+[Vassili Matsos] 14:20:02
+Those should be much less important.
+
+[Vassili Matsos] 14:20:04
+than the characteristic award with zero detuning.
+
+[Vassili Matsos] 14:20:10
+Because on the experiment, usually we have zero detuning.
+
+[Brace Liu] 14:20:11
+Okay.
+
+[Vassili Matsos] 14:20:14
+And then…
+
+[Vassili Matsos] 14:20:17
+on average, we have 0.5%
+
+[Vassili Matsos] 14:20:20
+So, on average, we have 5% detuning.
+
+[Vassili Matsos] 14:20:22
+But the most likely…
+
+[Vassili Matsos] 14:20:24
+detuning will have is zero, because…
+
+[Vassili Matsos] 14:20:27
+detuning, so this Gaussian distribution.
+
+[Vassili Matsos] 14:20:34
+Yeah. If that doesn't make sense, please, please tell me.
+
+[Brace Liu] 14:20:34
+Okay.
+
+[Brace Liu] 14:20:41
+So yeah, okay, I think I get the most.
+
+[Vassili Matsos] 14:20:45
+You're lost.
+
+[Vassili Matsos] 14:20:47
+Okay. Um…
+
+[Brace Liu] 14:20:47
+Yeah. Uh, but I want to ask, so… How to… how to know the… distance between them.
+
+[Brace Liu] 14:20:58
+The robots when robots to fit into value and.
+
+[Brace Liu] 14:21:03
+No rules, no noise in the past pandemic. Such like, uh, if I… If I ate the robots.
+
+[Vassili Matsos] 14:21:10
+Um…
+
+[Brace Liu] 14:21:17
+Should I make it a fed empty? To be… to be higher.
+
+[Brace Liu] 14:21:24
+To be almost 1. Where we don't count as.
+
+[Vassili Matsos] 14:21:28
+Ideally, so ideally, if there's no noise,
+
+[Vassili Matsos] 14:21:33
+the robust and not robust fidelity should be the same.
+
+[Brace Liu] 14:21:39
+should be the same. Ah, okay.
+
+[Vassili Matsos] 14:21:40
+Like, roughly the same.
+
+[Vassili Matsos] 14:21:44
+Like, you shouldn't have this, like,
+
+[Vassili Matsos] 14:21:46
+They would be exactly the same, but they should be…
+
+[Vassili Matsos] 14:21:48
+A good, robust pulse means that
+
+[Vassili Matsos] 14:21:51
+the fidelity of the…
+
+[Vassili Matsos] 14:21:55
+robust pulse and the non-robust pulse when you have no noise.
+
+[Vassili Matsos] 14:22:00
+the difference between those fidelities should be less than what you care about.
+
+[Vassili Matsos] 14:22:04
+So here…
+
+[Vassili Matsos] 14:22:07
+Here, the 5… it's 5% difference, right?
+
+[Brace Liu] 14:22:10
+Yeah.
+
+[Vassili Matsos] 14:22:10
+Which is not… it's not… you wouldn't…
+
+[Vassili Matsos] 14:22:13
+say that's a good, robust pulse, because…
+
+[Vassili Matsos] 14:22:16
+we care about 5% difference.
+
+[Brace Liu] 14:22:20
+Oh, okay.
+
+[Vassili Matsos] 14:22:21
+Yeah, um, it's still a good… it's still a good result, because I can see that…
+
+[Vassili Matsos] 14:22:28
+the optimization has done something.
+
+[Vassili Matsos] 14:22:30
+Because you can see that it's working a little bit.
+
+[Vassili Matsos] 14:22:34
+Yeah, because, yeah, when you compare the two…
+
+[Brace Liu] 14:22:34
+Yeah.
+
+[Vassili Matsos] 14:22:36
+One has… one is performing better over a larger number of detrudings.
+
+[Brace Liu] 14:22:42
+Okay.
+
+[Vassili Matsos] 14:22:43
+Yeah, so you know that it's working, it's just not.
+
+[Vassili Matsos] 14:22:47
+Exactly.
+
+[Vassili Matsos] 14:22:49
+it's not, like, uh, working…
+
+[Vassili Matsos] 14:22:52
+the best that it can.
+
+[Brace Liu] 14:22:56
+Okay, okay.
+
+[Vassili Matsos] 14:22:59
+So, and I was saying… I was… I just wanted to tell you that I was… when I first did this, I was also saying the same thing.
+
+[Vassili Matsos] 14:23:06
+And the only… I was seeing the same thing where the robust pulse was…
+
+[Vassili Matsos] 14:23:10
+5% worse.
+
+[Vassili Matsos] 14:23:12
+the thing that fixed it was the… was the Gaussian… was the weighting of the…
+
+[Vassili Matsos] 14:23:23
+was the waiting.
+
+[Vassili Matsos] 14:23:28
+Yeah, I wish I could draw what I mean.
+
+[Vassili Matsos] 14:23:35
+Yeah.
+
+[Brace Liu] 14:23:38
+Okay.
+
+[Vassili Matsos] 14:23:45
+Yeah, did… did you have any other questions?
+
+[Brace Liu] 14:23:50
+I just need to say… A new learning to make you the same time.
+
+[Vassili Matsos] 14:23:58
+a new way to make the same.
+
+[Brace Liu] 14:24:00
+To make the wait. Okay, so I just need to do that to do the stochastic.
+
+[Vassili Matsos] 14:24:02
+Out of the way, yeah.
+
+[Vassili Matsos] 14:24:08
+Can you show me how you currently…
+
+[Vassili Matsos] 14:24:12
+um… calculate the reward.
+
+[Vassili Matsos] 14:24:16
+for the… for the robust.
+
+[Brace Liu] 14:24:16
+Yeah. Okay.
+
+[Brace Liu] 14:24:55
+This one?
+
+[Vassili Matsos] 14:24:57
+Yeah. Okay, so…
+
+[Vassili Matsos] 14:25:02
+So when you say the robust…
+
+[Vassili Matsos] 14:25:06
+eval, robust reward, and Fidelity Batch Full.
+
+[Vassili Matsos] 14:25:14
+So what's that code doing?
+
+[Vassili Matsos] 14:25:22
+Okay, robust training, okay for sample points, target values, sample weights, reward, and shots.
+
+[Vassili Matsos] 14:25:34
+Okay…
+
+[Vassili Matsos] 14:25:54
+Okay, can you scroll down?
+
+[Vassili Matsos] 14:26:06
+And further down…
+
+[Vassili Matsos] 14:26:16
+So what's the… what's the part of the code where you…
+
+[Vassili Matsos] 14:26:21
+you return the characteristic reward.
+
+[Brace Liu] 14:26:28
+Which will be caressing them.
+
+[Vassili Matsos] 14:26:29
+Yeah.
+
+[Brace Liu] 14:26:37
+I'll just not use the robots to school. down for those two.
+
+[Vassili Matsos] 14:26:45
+Is this… this is it, right? The…
+
+[Brace Liu] 14:26:51
+It's the robots just know the code.
+
+[Vassili Matsos] 14:26:54
+Okay, so this is… this is the robust…
+
+[Brace Liu] 14:26:59
+Yeah, it's the robust.
+
+[Vassili Matsos] 14:27:00
+Yep. Yeah, okay. So you send… so you send how many… how many in the batch?
+
+[Brace Liu] 14:27:09
+Or maybe in the batch.
+
+[Vassili Matsos] 14:27:10
+Yeah, okay, so my understanding of the code is that you send…
+
+[Vassili Matsos] 14:27:15
+You sample all the detunings.
+
+[Vassili Matsos] 14:27:17
+And then you get a number… a number of sent… like, for all the detunings, that's the… that's the batch number.
+
+[Vassili Matsos] 14:27:23
+Like, that's how many…
+
+[Vassili Matsos] 14:27:59
+Okay.
+
+[Vassili Matsos] 14:28:05
+Okay…
+
+[Vassili Matsos] 14:28:14
+So, is emotional detuning…
+
+[Vassili Matsos] 14:28:18
+the emotional detuning argument, is that a list? Sorry, no, it's not a list, it's a…
+
+[Vassili Matsos] 14:28:36
+Oh, wait, do you just, like…
+
+[Brace Liu] 14:28:45
+Ah, Mr. Sm is the default between batch size is.
+
+[Vassili Matsos] 14:28:47
+Okay.
+
+[Brace Liu] 14:28:52
+um, violence under 16. Enable pesticide is fine. It will… interval is banking.
+
+[Vassili Matsos] 14:28:54
+Right.
+
+[Vassili Matsos] 14:29:02
+20, okay.
+
+[Brace Liu] 14:29:03
+Yeah.
+
+[Brace Liu] 14:29:11
+Eastern Yan.
+
+[Vassili Matsos] 14:29:12
+So, for each…
+
+[Vassili Matsos] 14:29:15
+For each epoch…
+
+[Vassili Matsos] 14:29:23
+Okay.
+
+[Brace Liu] 14:29:28
+This past content.
+
+[Vassili Matsos] 14:29:37
+Okay, interesting.
+
+[Brace Liu] 14:29:44
+So many vaccinations.
+
+[Vassili Matsos] 14:30:06
+Hmm.
+
+[Brace Liu] 14:30:08
+Yeah, but I remember the… is the default.
+
+[Vassili Matsos] 14:30:12
+Yeah.
+
+[Vassili Matsos] 14:30:14
+Okay, maybe, okay, maybe I'm…
+
+[Vassili Matsos] 14:30:17
+misunderstanding your code.
+
+[Brace Liu] 14:30:20
+Yeah, I think maybe there is an example, but I can describe it to be honest.
+
+[Vassili Matsos] 14:30:28
+Yeah, I know, it's really hard. It's really hard to…
+
+[Brace Liu] 14:30:32
+Yeah.
+
+[Vassili Matsos] 14:30:33
+I get that completely, don't worry, don't worry.
+
+[Vassili Matsos] 14:30:37
+Um…
+
+[Vassili Matsos] 14:30:43
+Okay, so, right, so maybe… okay, maybe I'll ask a question. So for each policy,
+
+[Vassili Matsos] 14:30:53
+Um, how many times do you sim… do you… like, how many…
+
+[Vassili Matsos] 14:30:59
+Each policy do you sample from the detunings?
+
+[Brace Liu] 14:31:07
+Oh.
+
+[Brace Liu] 14:31:12
+Um, do you mean the… train simulation times.
+
+[Vassili Matsos] 14:31:20
+like, maybe… maybe can you…
+
+[Brace Liu] 14:31:21
+the top.
+
+[Vassili Matsos] 14:31:25
+Can you show me the part of the code which samples detunings?
+
+[Vassili Matsos] 14:31:34
+for the, um, robust.
+
+[Brace Liu] 14:32:25
+I see.
+
+[Brace Liu] 14:32:48
+Dooming like them. the code for the for the sample determining.
+
+[Vassili Matsos] 14:32:53
+Yeah, yeah, yeah.
+
+[Brace Liu] 14:33:51
+I think it's this one. I'm not sure.
+
+[Vassili Matsos] 14:33:58
+uh…
+
+[Vassili Matsos] 14:34:05
+National Broadcast Mission will be tuning, so it's, uh…
+
+[Vassili Matsos] 14:34:07
+I mean, I don't… okay, I don't really understand what it's doing. So it's saying that the…
+
+[Vassili Matsos] 14:34:14
+the array…
+
+[Brace Liu] 14:34:33
+Alan, can you see my… can you see my VS code? The screen?
+
+[Vassili Matsos] 14:34:37
+I can't see your VS Code, no, I can only see the…
+
+[Vassili Matsos] 14:34:40
+GitHub.
+
+[Brace Liu] 14:34:42
+Okay.
+
+[Brace Liu] 14:34:55
+to the only the code is is a lot complex.
+
+[Vassili Matsos] 14:34:59
+Yeah, yeah, that's okay, that's okay.
+
+[Vassili Matsos] 14:35:02
+That's what makes it good.
+
+[Brace Liu] 14:35:02
+Yeah.
+
+[Brace Liu] 14:35:15
+I will try to share the screen after we have. I don't know what to do.
+
+[Brace Liu] 14:35:20
+opportunities. Okay. Can you see it?
+
+[Vassili Matsos] 14:35:26
+Yeah.
+
+[Vassili Matsos] 14:35:32
+Okay, yeah, I can see this, yeah.
+
+[Brace Liu] 14:35:35
+Yeah.
+
+[Vassili Matsos] 14:35:40
+Okay, so do you face… okay, so do…
+
+[Vassili Matsos] 14:35:46
+Riptan Max DK.
+
+[Vassili Matsos] 14:35:50
+So how do you, like, how do you sample it?
+
+[Vassili Matsos] 14:35:56
+Like, how do you choose… like, how do you choose which detunings are going to be in the optimization?
+
+[Brace Liu] 14:36:10
+How to… I think the same thing.
+
+[Vassili Matsos] 14:36:15
+Okay.
+
+[Vassili Matsos] 14:36:17
+Gotcha.
+
+[Brace Liu] 14:36:18
+altogether sample.
+
+[Vassili Matsos] 14:36:21
+Shape 0 and noise, noise sensitive.
+
+[Vassili Matsos] 14:36:27
+As you sample…
+
+[Brace Liu] 14:36:50
+I think is the training… is the training to get the sample?
+
+[Brace Liu] 14:36:55
+What the training process and evaluation.
+
+[Vassili Matsos] 14:36:59
+I see, so each… each epoch you choose from different samples.
+
+[Brace Liu] 14:37:07
+I remember is the different sample, but it's the every segment.
+
+[Brace Liu] 14:37:12
+Are we segment to send. instead of value.
+
+[Vassili Matsos] 14:37:16
+Oh, okay, interesting.
+
+[Vassili Matsos] 14:37:19
+But each segment?
+
+[Vassili Matsos] 14:37:21
+is a different value?
+
+[Vassili Matsos] 14:37:24
+Oh, okay, then I think you're already doing stochastic, then.
+
+[Brace Liu] 14:37:24
+Yeah.
+
+[Vassili Matsos] 14:37:29
+Yeah, so here, I think where it says uniform…
+
+[Vassili Matsos] 14:37:32
+minus 0. Oh.
+
+[Brace Liu] 14:37:32
+No, no. No, I think… I think I'm not already doing testing, because the AI told me.
+
+[Brace Liu] 14:37:41
+AI economy. I fell into me. Yeah.
+
+[Vassili Matsos] 14:37:43
+Okay.
+
+[Vassili Matsos] 14:37:49
+What's this, uh, it says that you're detuning is sampled from this uniform…
+
+[Vassili Matsos] 14:37:59
+So, like, it says number… a number 2, it says…
+
+[Vassili Matsos] 14:38:02
+Delta max…
+
+[Vassili Matsos] 14:38:08
+Right. Oh, so…
+
+[Brace Liu] 14:38:18
+Oh, maybe I can ask AI, and AI can respond with to me is more clear.
+
+[Vassili Matsos] 14:38:21
+Yeah.
+
+[Vassili Matsos] 14:38:23
+easier to…
+
+[Vassili Matsos] 14:38:26
+Yeah.
+
+[Brace Liu] 14:38:26
+Yeah, right. Can you see that?
+
+[Vassili Matsos] 14:38:29
+Okay. Yeah, thanks for… thanks for the English.
+
+[Vassili Matsos] 14:38:35
+Uh… okay, the code picks K based, yeah, design K equals number of detrunning samples per action.
+
+[Vassili Matsos] 14:38:40
+Yeah. Okay, based on training, defacing, really shouldn't deface…
+
+[Vassili Matsos] 14:38:49
+King Range.
+
+[Vassili Matsos] 14:38:53
+Okay…
+
+[Vassili Matsos] 14:38:57
+For example, the tuning matrix, B times K. So what is K?
+
+[Vassili Matsos] 14:39:00
+Number 3?
+
+[Vassili Matsos] 14:39:04
+pretend the matrix to batch size K.
+
+[Brace Liu] 14:39:08
+Do you mean the K?
+
+[Vassili Matsos] 14:39:08
+Yeah, what length is that?
+
+[Brace Liu] 14:39:12
+I assume it just information. Sm is valid. which is designed.
+
+[Vassili Matsos] 14:39:18
+Okay. Oh, okay, yeah, yeah.
+
+[Vassili Matsos] 14:39:25
+Alright. Okay, so, okay, so if you go… if you go to number 2…
+
+[Vassili Matsos] 14:39:30
+It's a… yeah, can you click on the line 50… line 577 of binomial crime?
+
+[Vassili Matsos] 14:39:38
+Alright, so… oh, that's what you're already seeing.
+
+[Brace Liu] 14:39:41
+Yeah, Jason, she's showing.
+
+[Vassili Matsos] 14:39:44
+Oh, okay.
+
+[Vassili Matsos] 14:39:49
+But what's it?
+
+[Vassili Matsos] 14:39:53
+Because it says for each action, the code picks K on the epoch type.
+
+[Brace Liu] 14:39:56
+Okay.
+
+[Brace Liu] 14:40:03
+Yeah. Thank you, John.
+
+[Vassili Matsos] 14:40:04
+So what are those… what are…
+
+[Vassili Matsos] 14:40:06
+What are those K detunings?
+
+[Brace Liu] 14:40:16
+What's the K?
+
+[Vassili Matsos] 14:40:18
+Yeah.
+
+[Vassili Matsos] 14:40:20
+I should just download this into my own VS Code, right?
+
+[Vassili Matsos] 14:40:26
+And then us, and then ask.
+
+[Brace Liu] 14:40:30
+So, yeah.
+
+[Brace Liu] 14:40:35
+I'm asking K and Chad.
+
+[Vassili Matsos] 14:40:47
+Oh yeah, it's because it says that, like, rng.uniform.
+
+[Vassili Matsos] 14:40:51
+I wonder where that is.
+
+[Vassili Matsos] 14:40:54
+I don't know if…
+
+[Brace Liu] 14:40:55
+The K is the K is a different number.
+
+[Brace Liu] 14:40:59
+economy weddings.
+
+[Vassili Matsos] 14:41:00
+Here's a number of petitioning samples for action in robust training extraction.
+
+[Vassili Matsos] 14:41:04
+Additioning those, yeah.
+
+[Vassili Matsos] 14:41:07
+Okay, yep.
+
+[Vassili Matsos] 14:41:09
+Certainly, KG phase nose train.
+
+[Vassili Matsos] 14:41:11
+But then how… and then… but what I wondered is, like, how are those K… where are the K noise traject… like, where are the detuning values?
+
+[Vassili Matsos] 14:41:20
+How are they sampled?
+
+[Vassili Matsos] 14:41:23
+If you can ask, like, how are those KD tuning values sampled in the code?
+
+[Brace Liu] 14:41:30
+Um, so… All others.
+
+[Vassili Matsos] 14:41:33
+Yeah.
+
+[Vassili Matsos] 14:41:35
+Yeah. Uh, KED tuning values sampled.
+
+[Brace Liu] 14:41:43
+During the sample.
+
+[Vassili Matsos] 14:41:44
+Uh, just, uh, just how those ca- how those K detuning values sampled?
+
+[Vassili Matsos] 14:41:51
+I think it hopefully should know.
+
+[Vassili Matsos] 14:41:55
+Yeah, yeah, perfect.
+
+[Vassili Matsos] 14:42:11
+from a bound range of other Robbie Rates couldn't compute.
+
+[Vassili Matsos] 14:42:13
+Okay, but where is that code?
+
+[Vassili Matsos] 14:42:18
+I'm so confused. Okay, okay. So, draw… okay, so that delta max is equal to D…
+
+[Brace Liu] 14:42:19
+You want to happen.
+
+[Vassili Matsos] 14:42:24
+Dephased detuning frac.
+
+[Vassili Matsos] 14:42:25
+times Omega Rabbi, which is…
+
+[Vassili Matsos] 14:42:30
+The…
+
+[Vassili Matsos] 14:42:32
+Oh, but… oh, detuning frac.
+
+[Vassili Matsos] 14:42:35
+Is that…?
+
+[Vassili Matsos] 14:42:38
+that variable deface detuning frac, is that a list?
+
+[Vassili Matsos] 14:42:44
+Or an array.
+
+[Brace Liu] 14:42:48
+I'm not sure about it. Maybe I can ask again.
+
+[Vassili Matsos] 14:42:52
+Okay.
+
+[Vassili Matsos] 14:43:22
+It's not bad, right?
+
+[Brace Liu] 14:43:24
+Yeah, I think.
+
+[Vassili Matsos] 14:43:25
+Okay, I think it's 5210. Okay.
+
+[Vassili Matsos] 14:43:27
+Yeah, um, okay. So…
+
+[Brace Liu] 14:43:33
+Pressing time.
+
+[Vassili Matsos] 14:43:34
+Uh… yeah.
+
+[Vassili Matsos] 14:43:37
+So…
+
+[Vassili Matsos] 14:43:50
+the… because it's… I think it's calculated with the… it's a uniform…
+
+[Vassili Matsos] 14:43:57
+it's… it's calculated by doing that, like, num…
+
+[Vassili Matsos] 14:44:00
+np.uniform, I think.
+
+[Vassili Matsos] 14:44:04
+Which means that samples…
+
+[Vassili Matsos] 14:44:07
+from Delta max to… minus delta max to plus delta max uniformly.
+
+[Vassili Matsos] 14:44:12
+Which…
+
+[Vassili Matsos] 14:44:14
+It's fine.
+
+[Vassili Matsos] 14:44:16
+But you need to wait.
+
+[Vassili Matsos] 14:44:21
+the, um, output. You need to wait, like,
+
+[Vassili Matsos] 14:44:24
+Every time you calculate, you get… you get the reward.
+
+[Vassili Matsos] 14:44:29
+Every time you update the policy,
+
+[Vassili Matsos] 14:44:33
+based on the sim… based on…
+
+[Vassili Matsos] 14:44:37
+the rewards.
+
+[Vassili Matsos] 14:44:40
+the…
+
+[Vassili Matsos] 14:44:42
+You have to lower the importance of
+
+[Vassili Matsos] 14:44:45
+the detunings which are high.
+
+[Vassili Matsos] 14:44:55
+Such a large… yeah, so if you have…
+
+[Vassili Matsos] 14:44:58
+So the large… so when you… when you… when you get the reward based on simulations with large detunings,
+
+[Vassili Matsos] 14:45:03
+You want to make sure that they aren't influencing the policy.
+
+[Vassili Matsos] 14:45:07
+to update as much.
+
+[Vassili Matsos] 14:45:12
+That's what's causing the… that's what's causing the robust fidelity to be lower.
+
+[Brace Liu] 14:45:14
+Okay.
+
+[Brace Liu] 14:45:20
+Okay. Yeah, yeah, yeah, again or not.
+
+[Vassili Matsos] 14:45:20
+Yeah, does that make sense?
+
+[Vassili Matsos] 14:45:24
+Okay, okay, good.
+
+[Brace Liu] 14:45:26
+Yeah, I can ask the intro to AI. Yeah, to be honest.
+
+[Vassili Matsos] 14:45:30
+That's cool. I don't know what to do.
+
+[Brace Liu] 14:45:32
+Yeah, it should be always modifying, um… There's so so many things that I'm not familiar with.
+
+[Vassili Matsos] 14:45:40
+Yeah, yeah, no, it's so… it's, um, you know…
+
+[Vassili Matsos] 14:45:44
+It took me a long time.
+
+[Vassili Matsos] 14:45:47
+you know…
+
+[Vassili Matsos] 14:45:49
+And to do this, and I had a whole physics degree.
+
+[Brace Liu] 14:45:50
+Yeah.
+
+[Vassili Matsos] 14:45:53
+So…
+
+[Vassili Matsos] 14:45:55
+it's okay, like, it's, you know, it makes sense if…
+
+[Vassili Matsos] 14:45:59
+these things that aren't very obvious.
+
+[Vassili Matsos] 14:46:02
+Yeah, it's… there's a lot of physics in here, like, why…
+
+[Vassili Matsos] 14:46:07
+why certain things should be done the way they are. It's a lot of… a lot of physics knowledge.
+
+[Vassili Matsos] 14:46:12
+Yeah.
+
+[Brace Liu] 14:46:12
+Yeah.
+
+[Vassili Matsos] 14:46:17
+Um, okay, I hope… I hope that helps.
+
+[Vassili Matsos] 14:46:19
+Bryce, I hope that…
+
+[Vassili Matsos] 14:46:21
+I also want to say that I'll be in tomorrow. I shouldn't… I won't be sick tomorrow, I think.
+
+[Vassili Matsos] 14:46:29
+Um, so if you…
+
+[Brace Liu] 14:46:30
+Okay.
+
+[Vassili Matsos] 14:46:31
+If you, um…
+
+[Vassili Matsos] 14:46:35
+Yeah, if you wanted to come in tomorrow, you can.
+
+[Vassili Matsos] 14:46:38
+like to SNH. It's fine.
+
+[Brace Liu] 14:46:43
+Yeah. Okay. If you want to have a meeting here, I can.
+
+[Vassili Matsos] 14:46:45
+Yeah. And I was also… and then I also wanted to ask, so you're about to finish soon, right?
+
+[Vassili Matsos] 14:46:55
+Do you have, like, 2 weeks left?
+
+[Brace Liu] 14:46:55
+Yeah. Um, to be honest, I think this week is done.
+
+[Brace Liu] 14:47:04
+maybe the last. I'm not sure why.
+
+[Vassili Matsos] 14:47:04
+Oh, this is okay, this is the last week.
+
+[Vassili Matsos] 14:47:08
+Yeah, I think it is a lawsuit, because we've had two weeks…
+
+[Vassili Matsos] 14:47:11
+And then…
+
+[Vassili Matsos] 14:47:13
+This is week 5, right?
+
+[Brace Liu] 14:47:18
+I think it's weak. Please, maybe because it's from 2… is from January 15th and is six week. Yeah, but that's how far I can to be honest, I can keep working if you want.
+
+[Vassili Matsos] 14:47:35
+Um, well…
+
+[Vassili Matsos] 14:47:38
+I, of course, I want that, but I also want you to be paid.
+
+[Brace Liu] 14:47:39
+Yeah.
+
+[Vassili Matsos] 14:47:41
+for it.
+
+[Vassili Matsos] 14:47:43
+So, I don't want you to work.
+
+[Vassili Matsos] 14:47:45
+Unpaid.
+
+[Brace Liu] 14:47:46
+Oh. Alright. Yeah, it's not okay, yeah.
+
+[Vassili Matsos] 14:47:54
+Yeah, no, like, if you kept working…
+
+[Vassili Matsos] 14:47:57
+then…
+
+[Brace Liu] 14:47:59
+Oh, yeah, yeah, that's fine. I don't need anything, yeah, I can keep your queue.
+
+[Brace Liu] 14:48:03
+I just want to say one thing, because I need to… I need to upload a report at the last of the project. Yeah, so I need to… I need to sort of need. I need to submit a report and the last at the last of this week. So yeah, so I want to just.
+
+[Vassili Matsos] 14:48:18
+Oh, yep.
+
+[Vassili Matsos] 14:48:22
+Okay, but yeah, maybe let's…
+
+[Brace Liu] 14:48:24
+Justin. Yeah.
+
+[Vassili Matsos] 14:48:25
+How the… how about we focus, then, on the report?
+
+[Brace Liu] 14:48:31
+Uh, and also the requirement I remember is is 3,000 is 3,000 maybe.
+
+[Vassili Matsos] 14:48:39
+3,000 words.
+
+[Brace Liu] 14:48:39
+See? Yeah, 6,000 words. Adjusting to and to submit it at the.
+
+[Vassili Matsos] 14:48:42
+Okay.
+
+[Brace Liu] 14:48:47
+at the finish of this week.
+
+[Vassili Matsos] 14:48:50
+That's a lot of words.
+
+[Brace Liu] 14:48:52
+Yeah, yeah, right. Yeah.
+
+[Vassili Matsos] 14:48:54
+Okay. Um, okay, well, let's…
+
+[Vassili Matsos] 14:48:58
+maybe focus on that.
+
+[Vassili Matsos] 14:49:01
+Instead of…
+
+[Vassili Matsos] 14:49:03
+Continuing to push and push, because
+
+[Vassili Matsos] 14:49:07
+I think… so one thing that I want you to do is, um…
+
+[Vassili Matsos] 14:49:13
+maybe give a short presentation?
+
+[Brace Liu] 14:49:18
+Yeah, that's why. Okay.
+
+[Vassili Matsos] 14:49:19
+Um, and I think that it would be good to…
+
+[Vassili Matsos] 14:49:24
+maybe… to do that, but also to practice it in front of me, um, just so that I can help you…
+
+[Vassili Matsos] 14:49:33
+um, you know, like, say, well, okay, you should present on… you should talk about this more, talk about this less, like, that kind of thing.
+
+[Vassili Matsos] 14:49:39
+Um, so…
+
+[Vassili Matsos] 14:49:43
+Yeah, let's say that, like…
+
+[Vassili Matsos] 14:49:46
+Okay, so your report is due on Sunday?
+
+[Vassili Matsos] 14:49:49
+Is that right?
+
+[Vassili Matsos] 14:49:52
+Or Friday.
+
+[Brace Liu] 14:49:52
+Oh. I'm not sure the time.
+
+[Vassili Matsos] 14:49:56
+Okay.
+
+[Vassili Matsos] 14:49:59
+Okay, maybe let me know when…
+
+[Vassili Matsos] 14:50:01
+When that is.
+
+[Brace Liu] 14:50:04
+Yeah, okay, I will try to find a find the time being like and and call you.
+
+[Vassili Matsos] 14:50:09
+Yeah, let me know, and then… and then tomorrow, let's… let's, um, maybe come in tomorrow, and then I can…
+
+[Vassili Matsos] 14:50:15
+We can talk about the presentation.
+
+[Brace Liu] 14:50:19
+Okay, so the presentation is tomorrow for the islands.
+
+[Vassili Matsos] 14:50:23
+No, no, tomorrow… uh, tomorrow is not… you don't have to do anything tomorrow.
+
+[Vassili Matsos] 14:50:27
+But, like, come in and we can talk about the…
+
+[Brace Liu] 14:50:29
+Okay.
+
+[Vassili Matsos] 14:50:31
+We can talk about the presentation, like, when you want to give it, how long it should be, that thing.
+
+[Brace Liu] 14:50:37
+Okay, okay.
+
+[Vassili Matsos] 14:50:37
+Yeah, because this… this…
+
+[Vassili Matsos] 14:50:39
+But this Friday, so I think that, like…
+
+[Vassili Matsos] 14:50:45
+Let's see.
+
+[Vassili Matsos] 14:50:47
+I was gonna… I was gonna say we should…
+
+[Vassili Matsos] 14:50:49
+we should do it on the last Friday of your…
+
+[Vassili Matsos] 14:50:52
+of your project.
+
+[Vassili Matsos] 14:50:56
+But that could be to…
+
+[Vassili Matsos] 14:51:00
+quick. Too soon, maybe.
+
+[Vassili Matsos] 14:51:04
+might not have enough time to prepare.
+
+[Vassili Matsos] 14:51:08
+Um…
+
+[Vassili Matsos] 14:51:10
+So, maybe next week?
+
+[Brace Liu] 14:51:14
+Yeah, that's fine. The timing is not common. Yeah. But but from next week I have some tutorials.
+
+[Vassili Matsos] 14:51:22
+Oh, yeah, god, yeah, of course.
+
+[Brace Liu] 14:51:25
+Yeah.
+
+[Vassili Matsos] 14:51:26
+Yeah, it's gonna get really busy. That's why you shouldn't, um…
+
+[Vassili Matsos] 14:51:29
+That's why you don't have to keep working, because I think it's going to be really busy for you.
+
+[Brace Liu] 14:51:34
+Yeah, but during the weekend, I'm afraid to… between moments.
+
+[Vassili Matsos] 14:51:39
+Okay.
+
+[Vassili Matsos] 14:51:43
+Um, okay, yeah, let's talk… okay, yeah, let me just… maybe let's talk about it tomorrow.
+
+[Vassili Matsos] 14:51:48
+Um, and then we can plan stuff. And then maybe… maybe next week on…
+
+[Brace Liu] 14:51:48
+Okay, okay.
+
+[Vassili Matsos] 14:51:55
+Are you free? Do you have any tutorials on Friday morning?
+
+[Vassili Matsos] 14:52:07
+Uh, or… or do you have any tutorials on Tuesday?
+
+[Brace Liu] 14:52:13
+From the next week. I don't have any… yeah, I don't have any tutorials on Monday and Tuesday.
+
+[Vassili Matsos] 14:52:14
+Next week.
+
+[Vassili Matsos] 14:52:19
+Oh, okay, Friday?
+
+[Brace Liu] 14:52:22
+Friday, uh, I have a tutorial from night, from 6 PM.
+
+[Vassili Matsos] 14:52:27
+Oh, okay.
+
+[Brace Liu] 14:52:29
+Yeah. Yeah, I'm afraid. I'm free.
+
+[Vassili Matsos] 14:52:31
+Okay, so maybe Friday morning, then?
+
+[Brace Liu] 14:52:35
+next Friday morning.
+
+[Vassili Matsos] 14:52:37
+Yeah, so this is the 6th of March.
+
+[Brace Liu] 14:52:41
+Okay.
+
+[Vassili Matsos] 14:52:43
+Maybe, maybe. I was gonna say, let's… we'll talk about it tomorrow, but maybe just, like,
+
+[Vassili Matsos] 14:52:47
+what I'm thinking right now is either the 3rd of March or the 6th of March.
+
+[Brace Liu] 14:52:52
+Oh, okay, okay. We will have a talk tomorrow. Oh, I have one more tutorial.
+
+[Vassili Matsos] 14:52:59
+Oh, what time? In the morning? Okay. I was thinking…
+
+[Brace Liu] 14:52:59
+On 6 March in the morning. Yeah.
+
+[Vassili Matsos] 14:53:03
+I was thinking 2 o'clock.
+
+[Vassili Matsos] 14:53:05
+On Tuesday.
+
+[Brace Liu] 14:53:07
+I don't see my screen. Thursday. Yeah. On Tuesday.
+
+[Vassili Matsos] 14:53:08
+Oh, sorry, I was looking at my screen.
+
+[Vassili Matsos] 14:53:12
+Yeah, yeah, yeah, maybe Tuesday. Yeah, maybe Tuesday, on the 3rd, yeah.
+
+[Brace Liu] 14:53:16
+Yeah, Tuesday, I'm fine.
+
+[Vassili Matsos] 14:53:17
+Yeah, it seems like you got a lot of stuff on Friday, so maybe Tuesday's better.
+
+[Brace Liu] 14:53:22
+Yeah, okay.
+
+[Vassili Matsos] 14:53:26
+Because Tuesday, it's not… it's not as big.
+
+[Vassili Matsos] 14:53:29
+Because on Friday, you'd have to talk to the whole lab, but on Tuesday, we can just talk to the people that…
+
+[Vassili Matsos] 14:53:35
+Uh, running the experiment… running the experiment.
+
+[Brace Liu] 14:53:36
+Yeah.
+
+[Vassili Matsos] 14:53:37
+that you're working closely. Like, you're working on my…
+
+[Vassili Matsos] 14:53:42
+my experiment. And so if you just talk to the people that aren't my experiment, I think it's more helpful than talking to the whole lab.
+
+[Brace Liu] 14:53:48
+Okay. Yeah, yeah. Yeah.
+
+[Vassili Matsos] 14:53:49
+Um, and less stressful, because there's less people to…
+
+[Vassili Matsos] 14:53:52
+there's less people.
+
+[Vassili Matsos] 14:53:55
+Yeah, okay, yeah, okay, so tomorrow we'll talk about the report, and then we'll talk about the presentation.
+
+[Brace Liu] 14:54:02
+Okay.
+
+[Vassili Matsos] 14:54:03
+Okay. Um…
+
+[Vassili Matsos] 14:54:05
+Yeah, thanks for…
+
+[Vassili Matsos] 14:54:07
+meeting.
+
+[Brace Liu] 14:54:11
+Oh, so should I to do the start testing?
+
+[Vassili Matsos] 14:54:14
+Yeah.
+
+[Brace Liu] 14:54:15
+Keep doing that.
+
+[Vassili Matsos] 14:54:17
+Yeah, so I just… I just emailed the guy.
+
+[Vassili Matsos] 14:54:20
+Because I got the same… I got the same issue. Tingray and me got the same issue.
+
+[Vassili Matsos] 14:54:26
+Um, where…
+
+[Brace Liu] 14:54:26
+Oh, yeah.
+
+[Vassili Matsos] 14:54:29
+Okay, so the guy… the guy said…
+
+[Vassili Matsos] 14:54:32
+Dear Vasilia, can you please try and log into the portal again and see if it works? Our database did not include a correct entry for the LCI of the project.
+
+[Vassili Matsos] 14:54:39
+I've corrected this, and hopefully you can now see a project on the portal.
+
+[Vassili Matsos] 14:54:44
+Please note that either you or your supervisor can… oh, so I think you can make a top-up.
+
+[Brace Liu] 14:54:46
+But…
+
+[Brace Liu] 14:54:51
+I can tell off.
+
+[Vassili Matsos] 14:54:52
+Apparently. Can you… can you try again? Just because I'm not on the…
+
+[Vassili Matsos] 14:54:56
+I'm not on the Uni Wi-Fi, so it makes it harder.
+
+[Brace Liu] 14:55:01
+Okay, I also don't have the same device, and I am… I'm out of the candles.
+
+[Vassili Matsos] 14:55:06
+Oh, sorry, okay. Okay, well, let's take that.
+
+[Vassili Matsos] 14:55:09
+How much… how much more do you think we need?
+
+[Brace Liu] 14:55:09
+Yeah.
+
+[Brace Liu] 14:55:16
+I just know the stochastic deficiency the robots training. It will cost more.
+
+[Brace Liu] 14:55:26
+source then. And then, yeah, yeah.
+
+[Vassili Matsos] 14:55:27
+than previous.
+
+[Vassili Matsos] 14:55:29
+Yeah, okay. So, okay, we'll get another…
+
+[Vassili Matsos] 14:55:32
+another two, then maybe?
+
+[Brace Liu] 14:55:36
+Yeah, it's it's enough. Yes. It's too enough.
+
+[Vassili Matsos] 14:55:39
+Okay, okay.
+
+[Vassili Matsos] 14:55:42
+Okay, Alfting Ray to ask for more now.
+
+[Brace Liu] 14:55:44
+Good evening.
+
+[Brace Liu] 14:55:48
+Okay.
+
+[Vassili Matsos] 14:55:49
+Um, yeah, so it took a while, because they didn't work… they weren't working on the weekend, and it wasn't working for me either.
+
+[Vassili Matsos] 14:55:58
+Okay.
+
+[Brace Liu] 14:56:02
+Oh, so waste the time. Welcome to the evidence tomorrow.
+
+[Vassili Matsos] 14:56:06
+Which time?
+
+[Brace Liu] 14:56:08
+Yeah, wishlong.
+
+[Vassili Matsos] 14:56:09
+Uh…
+
+[Vassili Matsos] 14:56:11
+to… just to me… just to come into S&H?
+
+[Vassili Matsos] 14:56:13
+Um…
+
+[Vassili Matsos] 14:56:16
+you can… maybe…
+
+[Vassili Matsos] 14:56:21
+Maybe 11 AM?
+
+[Brace Liu] 14:56:25
+You have a hand. Okay, okay.
+
+[Vassili Matsos] 14:56:25
+Yeah.
+
+[Vassili Matsos] 14:56:28
+Yeah, you can work… you can work there if you want, or you can work in Fisher, it's fine.
+
+[Brace Liu] 14:56:33
+Okay.
+
+[Vassili Matsos] 14:56:34
+Yeah, if, yeah, so if you… if you want to work there, come in at 9, you know, like, come in like normal, but if you don't… if you want to work at Fisher for… in the beginning of the day, just come in whenever.
+
+[Brace Liu] 14:56:44
+Okay, and…
+
+[Vassili Matsos] 14:56:44
+Oh, yeah. Yeah.
+
+[Vassili Matsos] 14:56:48
+Okay.
+
+[Brace Liu] 14:56:50
+Yeah, okay.
+
+[Vassili Matsos] 14:56:51
+Alright, sounds good. Okay, I will see you tomorrow. Thanks for all the great work.
+
+[Vassili Matsos] 14:56:55
+So far, that's, uh, yeah.
+
+[Vassili Matsos] 14:56:58
+It's really cool what you've done.
+
+[Brace Liu] 14:57:00
+Yeah. Yeah, thank you so much. Yeah. Really appreciate because, um… to always is the 1st time to do the research.
+
+[Vassili Matsos] 14:57:03
+Sorry.
+
+[Brace Liu] 14:57:11
+Yeah, and it's also the first time to talk to runtime computing.
+
+[Vassili Matsos] 14:57:18
+Hmm.
+
+[Brace Liu] 14:57:18
+Yeah, so… so there are still some… There are still so many language I'm not very familiar yet. So for the code, the code to be only AI really helped me so much.
+
+[Vassili Matsos] 14:57:32
+Yeah,
+
+[Brace Liu] 14:57:32
+Yeah, so something. Yeah, so for something, I… I can describe it clearly. Even though I use Chinese, I can also, I can also describe it clearly. Yeah.
+
+[Vassili Matsos] 14:57:44
+Yeah, yeah, yeah. Well, it's a whole thing, like, it's, um, you know, people have to learn.
+
+[Brace Liu] 14:57:47
+Yeah.
+
+[Vassili Matsos] 14:57:51
+You don't… you don't become knowledgeable until you…
+
+[Vassili Matsos] 14:57:53
+you do the grinding.
+
+[Vassili Matsos] 14:57:55
+Yeah. Yeah.
+
+[Vassili Matsos] 14:57:58
+So… yeah, I mean, I'm really, like, you're only in your second year now, right? So, it's very… it's very impressive.
+
+[Vassili Matsos] 14:58:05
+Either way, it's very hard, like, it's a, you know, it's proper research, and so, yeah.
+
+[Brace Liu] 14:58:11
+Yeah, thank you so much. Yeah, oh yeah, I will… so… so, because there are no… And now computing results and so I can change the code and to… to be more familiar with the code. I can run the project.
+
+[Vassili Matsos] 14:58:12
+You've done a good job. Okay.
+
+[Vassili Matsos] 14:58:14
+Okay.
+
+[Vassili Matsos] 14:58:32
+Oh, okay.
+
+[Vassili Matsos] 14:58:35
+But what do you mean? Like…
+
+[Brace Liu] 14:58:35
+Yeah. Because there are no computing resource, so I can't… I can't run the project again.
+
+[Vassili Matsos] 14:58:44
+Oh, like, like, like, on your…
+
+[Brace Liu] 14:58:48
+on my computer. Yeah, because the guided resource, the guiding resource is the is used almost.
+
+[Vassili Matsos] 14:58:49
+Oh, right. Um…
+
+[Vassili Matsos] 14:58:58
+Yeah, yeah. No, I'll get some more. I'm gonna get some… an update… an upgrade.
+
+[Brace Liu] 14:59:00
+Yes.
+
+[Brace Liu] 14:59:04
+Yeah, yeah, yeah, I know that, but as now, as now, I can run a project.
+
+[Vassili Matsos] 14:59:10
+Oh, okay, you mean, like, just with the… with the, um…
+
+[Vassili Matsos] 14:59:13
+the one that you buy?
+
+[Brace Liu] 14:59:17
+Uh, no, no, I can't buy it. I can't buy the resource. I just mean that I… I can't run the project. I don't know. Yeah.
+
+[Vassili Matsos] 14:59:23
+Oh, yeah, I know, I know, yeah, yeah, I know. Yeah, yeah, yeah, yeah.
+
+[Brace Liu] 14:59:27
+Yeah. I can just change the code and to be more familiar with the code today.
+
+[Vassili Matsos] 14:59:32
+Okay, yeah. Yep.
+
+[Brace Liu] 14:59:34
+Yeah, yeah, right. Yeah. Okay.
+
+[Vassili Matsos] 14:59:36
+Okay,
+
