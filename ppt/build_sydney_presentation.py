@@ -12,6 +12,7 @@ Design goals from meeting notes:
 
 import re
 import shutil
+from datetime import datetime
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -32,6 +33,7 @@ ASSET_DIR = PPT_DIR / "assets"
 CAT_OUT = ROOT / "examples" / "trapped_ion_cat" / "outputs"
 GKP_OUT = ROOT / "examples" / "trapped_ion_gkp" / "outputs"
 BIN_OUT = ROOT / "examples" / "trapped_ion_binomial" / "outputs"
+BIN_CHECKPOINT = ROOT / "examples" / "trapped_ion_binomial" / "checkpoint"
 BIN_PRE_ROBUST_OUT = BIN_OUT / "archive_20260225_144627_pre_new_run"
 BIN_SWEEP_ROOT = ROOT / "examples" / "trapped_ion_binomial" / "penalty_sweep"
 
@@ -88,6 +90,16 @@ class HyperParamSummary:
 
 
 @dataclass
+class ConstantAmpRun:
+    tag: str
+    fidelity: float
+    robust_enabled: Optional[bool]
+    amp_refine_enabled: Optional[bool]
+    amp_full_enabled: Optional[bool]
+    path: Path
+
+
+@dataclass
 class Metrics:
     cat_fid: float
     gkp_fid: float
@@ -102,6 +114,15 @@ class Metrics:
     static_stats: DephasingStats
     stoch_stats: DephasingStats
     hyper: HyperParamSummary
+    nonrobust_history: List[Tuple[str, float]]
+    best_nonrobust_tag: str
+    best_nonrobust_fid: float
+    checkpoint_nonrobust_fid: float
+    baseline_fid_at_zero_detuning: float
+    checkpoint_amp_r_std: float
+    checkpoint_amp_b_std: float
+    constamp_nonrobust: Optional[ConstantAmpRun]
+    constamp_robust: Optional[ConstantAmpRun]
 
 
 def _font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
@@ -381,6 +402,157 @@ def _read_dephasing_stats(run_dir: Path) -> DephasingStats:
     )
 
 
+def _read_nonrobust_history(log_dir: Path) -> List[Tuple[str, float]]:
+    """Parse non-robust (no-noise/dephase-off) final fidelities from client logs."""
+    out: List[Tuple[str, float]] = []
+    if not log_dir.exists():
+        return out
+    for p in sorted(log_dir.glob("client_*.log")):
+        txt = p.read_text(encoding="utf-8", errors="ignore")
+        m_fid = re.search(r"Final fidelity\s+([0-9]*\.?[0-9]+)", txt)
+        if not m_fid:
+            continue
+        fid = float(m_fid.group(1))
+        m_rob = re.search(r"Robust dephasing:\s+enabled=(True|False)", txt)
+        if m_rob:
+            if m_rob.group(1) == "False":
+                out.append((p.stem.replace("client_", ""), fid))
+            continue
+        # Early logs before robust flags existed: treat as non-robust runs.
+        out.append((p.stem.replace("client_", ""), fid))
+    return out
+
+
+def _read_checkpoint_nonrobust_best(checkpoint_dir: Path) -> Optional[Tuple[str, float]]:
+    p = checkpoint_dir / "final_fidelity_best.txt"
+    if not p.exists():
+        return None
+    try:
+        fid = float(p.read_text(encoding="utf-8", errors="ignore").strip())
+    except Exception:
+        return None
+    ts = datetime.fromtimestamp(p.stat().st_mtime).strftime("%Y%m%d_%H%M%S")
+    return (f"checkpoint_{ts}", fid)
+
+
+def _read_baseline_fid_at_zero(run_dir: Path) -> float:
+    csv_path = run_dir / "dephasing_compare.csv"
+    if not csv_path.exists():
+        return 0.0
+    df = pd.read_csv(csv_path)
+    if not {"detuning_frac", "baseline_fidelity"}.issubset(df.columns):
+        return 0.0
+    idx = int((df["detuning_frac"].abs()).idxmin())
+    return float(df["baseline_fidelity"].iloc[idx])
+
+
+def _pulse_amp_std(npz_path: Path) -> Tuple[float, float]:
+    if not npz_path.exists():
+        return 0.0, 0.0
+    try:
+        data = np.load(npz_path)
+        amp_r = np.asarray(data["amp_r"], dtype=float)
+        amp_b = np.asarray(data["amp_b"], dtype=float)
+        return float(np.std(amp_r)), float(np.std(amp_b))
+    except Exception:
+        return 0.0, 0.0
+
+
+def _iter_candidate_logs() -> List[Path]:
+    roots = [
+        BIN_OUT / "logs",
+        BIN_SWEEP_ROOT,
+    ]
+    out: List[Path] = []
+    for root in roots:
+        if not root.exists():
+            continue
+        out.extend(sorted(root.rglob("*.log")))
+    return out
+
+
+def _parse_constant_amp_run(log_path: Path) -> Optional[ConstantAmpRun]:
+    txt = log_path.read_text(encoding="utf-8", errors="ignore")
+    m_fid = re.search(r"Final fidelity\s+([0-9]*\.?[0-9]+)", txt)
+    if not m_fid:
+        return None
+    fid = float(m_fid.group(1))
+
+    m_rob = re.search(r"Robust dephasing:\s+enabled=(True|False)", txt)
+    robust_enabled: Optional[bool]
+    if m_rob:
+        robust_enabled = m_rob.group(1) == "True"
+    else:
+        robust_enabled = None
+
+    m_refine = re.search(r"Final refinement setup:.*?amp_opt=(True|False)", txt)
+    amp_refine_enabled: Optional[bool]
+    if m_refine:
+        amp_refine_enabled = m_refine.group(1) == "True"
+    else:
+        amp_refine_enabled = None
+
+    m_full = re.search(r"Full-step refinement:.*?amp_opt=(True|False)", txt)
+    amp_full_enabled: Optional[bool]
+    if m_full:
+        amp_full_enabled = m_full.group(1) == "True"
+    else:
+        amp_full_enabled = None
+
+    # Strict constant-amplitude criterion:
+    # 1) final refinement does not optimize amplitudes (when field exists)
+    # 2) full-step refinement does not optimize amplitudes (when field exists)
+    # 3) runtime amplitude stats show std=0 for amp_r and amp_b (if present)
+    if amp_refine_enabled is True or amp_full_enabled is True:
+        return None
+
+    amp_ok = True
+    m_amp_r = re.findall(
+        r"amp_r stats: mean=([0-9\.\-]+)\s+std=([0-9\.\-]+)\s+min=([0-9\.\-]+)\s+max=([0-9\.\-]+)",
+        txt,
+    )
+    m_amp_b = re.findall(
+        r"amp_b stats: mean=([0-9\.\-]+)\s+std=([0-9\.\-]+)\s+min=([0-9\.\-]+)\s+max=([0-9\.\-]+)",
+        txt,
+    )
+    if m_amp_r and m_amp_b:
+        try:
+            amp_r_std = float(m_amp_r[-1][1])
+            amp_b_std = float(m_amp_b[-1][1])
+            amp_ok = (abs(amp_r_std) < 1.0e-10) and (abs(amp_b_std) < 1.0e-10)
+        except Exception:
+            amp_ok = False
+    if not amp_ok:
+        return None
+
+    tag = log_path.stem.replace("client_", "")
+    return ConstantAmpRun(
+        tag=tag,
+        fidelity=fid,
+        robust_enabled=robust_enabled,
+        amp_refine_enabled=amp_refine_enabled,
+        amp_full_enabled=amp_full_enabled,
+        path=log_path,
+    )
+
+
+def _read_constant_amp_evidence() -> Tuple[Optional[ConstantAmpRun], Optional[ConstantAmpRun]]:
+    candidates: List[ConstantAmpRun] = []
+    for p in _iter_candidate_logs():
+        run = _parse_constant_amp_run(p)
+        if run is not None:
+            candidates.append(run)
+    if not candidates:
+        return None, None
+
+    nonrob = [r for r in candidates if r.robust_enabled is False or r.robust_enabled is None]
+    rob = [r for r in candidates if r.robust_enabled is True]
+
+    best_nonrob = max(nonrob, key=lambda r: r.fidelity) if nonrob else None
+    best_rob = max(rob, key=lambda r: r.fidelity) if rob else None
+    return best_nonrob, best_rob
+
+
 def _extract_env_default(path: Path, key: str, fallback: str = "-") -> str:
     if not path.exists():
         return fallback
@@ -493,6 +665,17 @@ def read_metrics() -> Metrics:
     best_static = _best_by_score(static_entries_raw)
     best_stoch = _best_by_score(stoch_entries_raw)
     pre_vals = _read_score_file(BIN_PRE_ROBUST_OUT / "final_robust_score.txt") if (BIN_PRE_ROBUST_OUT / "final_robust_score.txt").exists() else {}
+    nonrobust_hist = _read_nonrobust_history(BIN_OUT / "logs")
+    checkpoint_nonrobust = _read_checkpoint_nonrobust_best(BIN_CHECKPOINT)
+    if checkpoint_nonrobust is not None:
+        nonrobust_hist = nonrobust_hist + [checkpoint_nonrobust]
+    if nonrobust_hist:
+        best_nonrobust = max(nonrobust_hist, key=lambda kv: kv[1])
+    else:
+        best_nonrobust = ("n/a", 0.0)
+
+    checkpoint_amp_r_std, checkpoint_amp_b_std = _pulse_amp_std(BIN_CHECKPOINT / "final_pulses_best.npz")
+    constamp_nonrobust, constamp_robust = _read_constant_amp_evidence()
 
     return Metrics(
         cat_fid=_safe_float_text(CAT_OUT / "final_fidelity.txt"),
@@ -508,6 +691,15 @@ def read_metrics() -> Metrics:
         static_stats=_read_dephasing_stats(best_static.run_dir),
         stoch_stats=_read_dephasing_stats(best_stoch.run_dir),
         hyper=_read_hyperparams(),
+        nonrobust_history=nonrobust_hist,
+        best_nonrobust_tag=best_nonrobust[0],
+        best_nonrobust_fid=float(best_nonrobust[1]),
+        checkpoint_nonrobust_fid=float(checkpoint_nonrobust[1]) if checkpoint_nonrobust is not None else 0.0,
+        baseline_fid_at_zero_detuning=_read_baseline_fid_at_zero(best_static.run_dir),
+        checkpoint_amp_r_std=checkpoint_amp_r_std,
+        checkpoint_amp_b_std=checkpoint_amp_b_std,
+        constamp_nonrobust=constamp_nonrobust,
+        constamp_robust=constamp_robust,
     )
 
 
@@ -814,34 +1006,34 @@ def build_literature_comparison_image(path: Path) -> None:
     cards = [
         (
             80,
-            150,
+            165,
             510,
-            790,
+            780,
             "Sivak et al. (PRX 2022)",
             "Model-free RL for quantum control.\n"
-            "Main message: feedback-driven policy\n"
-            "optimization can work without analytic gradients.",
+            "Core idea: optimize controls from feedback,\n"
+            "without analytic gradients.",
         ),
         (
             585,
-            150,
+            165,
             1015,
-            790,
+            780,
             "Matsos et al. (PRL 2024)",
             "Robust trapped-ion bosonic-state preparation.\n"
-            "Main message: deterministic and noise-robust\n"
-            "bosonic state preparation is experimentally feasible.",
+            "Core idea: deterministic and robust\n"
+            "bosonic preparation is experimentally feasible.",
         ),
         (
             1090,
-            150,
+            165,
             1520,
-            790,
+            780,
             "This Project",
-            "Applies and explains an RL workflow for\n"
-            "Cat/GKP/Binomial in trapped ions.\n"
-            "Includes dephasing-robust static and\n"
-            "stochastic training comparisons.",
+            "Applies and explains RL workflow for\n"
+            "Cat/GKP/Binomial trapped-ion states.\n"
+            "Adds dephasing-robust static/stochastic\n"
+            "training comparison.",
         ),
     ]
     fills = [(236, 244, 255), (236, 255, 244), (255, 247, 236)]
@@ -853,8 +1045,8 @@ def build_literature_comparison_image(path: Path) -> None:
             d,
             (x1 + 22, y1 + 22, x2 - 22, y1 + 86),
             title,
-            start_size=27,
-            min_size=20,
+            start_size=30,
+            min_size=22,
             bold=True,
             fill=(30, 47, 73),
         )
@@ -862,8 +1054,8 @@ def build_literature_comparison_image(path: Path) -> None:
             d,
             (x1 + 22, y1 + 92, x2 - 22, y2 - 22),
             body,
-            start_size=22,
-            min_size=15,
+            start_size=24,
+            min_size=17,
             fill=(35, 55, 84),
             spacing=9,
         )
@@ -933,59 +1125,83 @@ def build_sampling_strategy_image(path: Path) -> None:
     w, h = 1600, 900
     img = Image.new("RGB", (w, h), (249, 252, 255))
     d = ImageDraw.Draw(img)
-    f_title = _font(42, bold=True)
-    f_sub = _font(26, bold=True)
-    f_txt = _font(21)
-
     _draw_text_in_box(
         d,
         (70, 30, 1530, 100),
-        "Characteristic Point Selection Across Training",
+        "How Characteristic-Function Points Are Chosen",
         start_size=42,
         min_size=31,
         bold=True,
         fill=(24, 39, 60),
     )
 
-    stages = [
-        (100, 190, 480, 760, "Stage 1", "Top-k important points\nfor strong early signal"),
-        (560, 190, 940, 760, "Stage 2", "Broader weighted sampling\nfor exploration + stability"),
-        (1020, 190, 1400, 760, "Stage 3", "Dense sampling for\nhigh-fidelity fine matching"),
+    panels = [
+        (
+            (80, 170, 520, 765),
+            (232, 243, 255),
+            (79, 128, 214),
+            "Stage 1: deterministic top-k warm start",
+            "Score each candidate by |target(alpha)| * |alpha|^radial_exp, then keep top-k points. "
+            "This gives strong initial supervision (not random).",
+        ),
+        (
+            (580, 170, 1020, 765),
+            (236, 255, 244),
+            (57, 160, 108),
+            "Stage 2: radial-stratified sampling",
+            "Split radius into bins. Allocate per-bin quota by total weight mass, then sample within each bin "
+            "using local normalized weights.",
+        ),
+        (
+            (1080, 170, 1520, 765),
+            (255, 247, 236),
+            (206, 136, 44),
+            "Stage 3: denser continuation",
+            "Use the same stratified rule with larger sample budget. "
+            "If any quota is missing, fill from global weighted distribution.",
+        ),
     ]
-    fills = [(232, 243, 255), (236, 255, 244), (255, 247, 236)]
-    outlines = [(79, 128, 214), (57, 160, 108), (206, 136, 44)]
-    for (x1, y1, x2, y2, title, body), fill, outline in zip(stages, fills, outlines):
-        _rr(d, (x1, y1, x2, y2), 24, fill=fill, outline=outline, width=4)
+    for rect, fill, outline, title, body in panels:
+        x1, y1, x2, y2 = rect
+        _rr(d, rect, 24, fill=fill, outline=outline, width=4)
         _draw_text_in_box(
             d,
-            (x1 + 22, y1 + 22, x2 - 22, y1 + 78),
+            (x1 + 20, y1 + 22, x2 - 20, y1 + 122),
             title,
-            start_size=26,
-            min_size=20,
+            start_size=25,
+            min_size=18,
             bold=True,
             fill=(29, 46, 72),
+            spacing=7,
         )
         _draw_text_in_box(
             d,
-            (x1 + 22, y1 + 84, x2 - 22, y1 + 170),
+            (x1 + 20, y1 + 132, x2 - 20, y1 + 305),
             body,
-            start_size=21,
-            min_size=15,
+            start_size=20,
+            min_size=14,
             fill=(35, 55, 84),
             spacing=8,
         )
-        # visual density dots
+
         rng = np.random.default_rng(abs(hash(title)) % (2**32))
-        n = {"Stage 1": 40, "Stage 2": 90, "Stage 3": 180}[title]
-        for _ in range(n):
-            px = int(rng.uniform(x1 + 35, x2 - 35))
-            py = int(rng.uniform(y1 + 180, y2 - 35))
+        density = 50 if "Stage 1" in title else (95 if "Stage 2" in title else 170)
+        for _ in range(density):
+            px = int(rng.uniform(x1 + 25, x2 - 25))
+            py = int(rng.uniform(y1 + 330, y2 - 25))
             d.ellipse((px - 2, py - 2, px + 2, py + 2), fill=(70, 105, 165))
 
-    _arrow(d, (480, 470), (560, 470), color=(96, 118, 149), width=7)
-    _arrow(d, (940, 470), (1020, 470), color=(96, 118, 149), width=7)
-
-    d.text((100, 805), "The sampling policy becomes denser and more target-focused as training progresses.", font=f_txt, fill=(40, 60, 90))
+    _arrow(d, (520, 465), (580, 465), color=(96, 118, 149), width=7)
+    _arrow(d, (1020, 465), (1080, 465), color=(96, 118, 149), width=7)
+    _draw_text_in_box(
+        d,
+        (80, 790, 1520, 860),
+        "Conclusion: point selection is rule-based + stochastic, not pure random selection.",
+        start_size=21,
+        min_size=15,
+        bold=True,
+        fill=(40, 60, 90),
+    )
     img.save(path)
 
 
@@ -1055,38 +1271,97 @@ def build_epoch_timeline_image(path: Path) -> None:
     w, h = 1600, 900
     img = Image.new("RGB", (w, h), (250, 252, 255))
     d = ImageDraw.Draw(img)
-    f_title = _font(46, bold=True)
-    f_box = _font(24, bold=True)
-    f_txt = _font(22)
+    _draw_text_in_box(
+        d,
+        (70, 30, 1530, 105),
+        "Training Units: Episode, Epoch, and Policy Update",
+        start_size=44,
+        min_size=32,
+        bold=True,
+        fill=(24, 38, 58),
+    )
 
-    d.text((70, 30), "Episode, Epoch, and Policy Update", font=f_title, fill=(24, 38, 58))
-
-    y = 300
-    x_starts = [80, 380, 690, 980, 1270]
-    labels = [
-        "1) Rollout\ntrajectories",
-        "2) Collect\nmeasurement rewards",
-        "3) Estimate\nadvantages",
-        "4) K policy\nupdates (PPO)",
-        "5) Evaluate\n& log",
+    defs = [
+        (
+            (80, 150, 500, 330),
+            (232, 243, 255),
+            (78, 125, 211),
+            "Episode",
+            "One full pulse attempt: propose controls -> evolve -> get reward.",
+        ),
+        (
+            (560, 150, 980, 330),
+            (236, 255, 244),
+            (53, 160, 106),
+            "Epoch",
+            "A batch of episodes collected with current policy parameters.",
+        ),
+        (
+            (1040, 150, 1520, 330),
+            (255, 247, 236),
+            (202, 137, 45),
+            "Policy updates / epoch",
+            "Reuse the same epoch data for U PPO updates before next rollout batch.",
+        ),
     ]
-    fills = [(232, 243, 255), (238, 253, 245), (255, 247, 236), (245, 239, 255), (236, 248, 250)]
-    outlines = [(78, 125, 211), (53, 160, 106), (202, 137, 45), (152, 92, 186), (66, 148, 176)]
+    for rect, fill, outline, title, body in defs:
+        x1, y1, x2, y2 = rect
+        _rr(d, rect, 24, fill=fill, outline=outline, width=4)
+        _draw_text_in_box(
+            d,
+            (x1 + 20, y1 + 18, x2 - 20, y1 + 76),
+            title,
+            start_size=28,
+            min_size=20,
+            bold=True,
+            fill=(30, 47, 72),
+        )
+        _draw_text_in_box(
+            d,
+            (x1 + 20, y1 + 80, x2 - 20, y2 - 18),
+            body,
+            start_size=20,
+            min_size=14,
+            fill=(35, 55, 84),
+            spacing=8,
+        )
 
-    for i, x in enumerate(x_starts):
-        rect = (x, y, x + 240, y + 190)
-        _rr(d, rect, 24, fill=fills[i], outline=outlines[i], width=4)
-        bb = d.multiline_textbbox((0, 0), labels[i], font=f_box, align="center", spacing=8)
-        tw = bb[2] - bb[0]
-        th = bb[3] - bb[1]
-        d.multiline_text((x + (240 - tw) // 2, y + (190 - th) // 2), labels[i], font=f_box, fill=(25, 35, 50), align="center", spacing=8)
-        if i < len(x_starts) - 1:
-            _arrow(d, (x + 240, y + 95), (x_starts[i + 1], y + 95), color=(95, 118, 155), width=6)
+    _arrow(d, (500, 240), (560, 240), color=(95, 118, 155), width=6)
+    _arrow(d, (980, 240), (1040, 240), color=(95, 118, 155), width=6)
 
-    d.text((110, 555), "Episode: one pulse sequence trial", font=f_txt, fill=(32, 52, 81))
-    d.text((110, 592), "Epoch: many episodes + one optimization cycle", font=f_txt, fill=(32, 52, 81))
-    d.text((110, 629), "Policy updates: repeated gradient steps inside one epoch", font=f_txt, fill=(32, 52, 81))
-    d.text((110, 700), "Key hyperparameter: number of policy updates per epoch", font=_font(24, bold=True), fill=(52, 74, 115))
+    flow_boxes = [
+        (110, 430, 380, 610, "Rollout episodes"),
+        (430, 430, 700, 610, "Compute returns\nand advantages"),
+        (750, 430, 1020, 610, "Run U PPO\nupdates"),
+        (1070, 430, 1340, 610, "Evaluate and\nlog"),
+    ]
+    for i, (x1, y1, x2, y2, txt) in enumerate(flow_boxes):
+        _rr(d, (x1, y1, x2, y2), 20, fill=(245, 248, 254), outline=(146, 167, 201), width=3)
+        _draw_text_in_box(
+            d,
+            (x1 + 14, y1 + 14, x2 - 14, y2 - 14),
+            txt,
+            start_size=22,
+            min_size=15,
+            bold=True,
+            align="center",
+            valign="middle",
+            fill=(34, 52, 81),
+        )
+        if i < len(flow_boxes) - 1:
+            _arrow(d, (x2, (y1 + y2) // 2), (flow_boxes[i + 1][0], (y1 + y2) // 2), color=(96, 118, 149), width=6)
+
+    _draw_text_in_box(
+        d,
+        (110, 675, 1490, 850),
+        "Why this matters: U is a high-impact hyperparameter. Too small underuses expensive rollouts; "
+        "too large can overfit one batch and destabilize training.",
+        start_size=22,
+        min_size=15,
+        bold=True,
+        fill=(46, 66, 97),
+        spacing=8,
+    )
 
     img.save(path)
 
@@ -1095,24 +1370,32 @@ def build_ppo_image(path: Path) -> None:
     w, h = 1600, 900
     img = Image.new("RGB", (w, h), (248, 252, 255))
     d = ImageDraw.Draw(img)
-    f_title = _font(46, bold=True)
-    f_sub = _font(28, bold=True)
-    f_txt = _font(23)
-
     _draw_text_in_box(
         d,
         (70, 28, 1530, 100),
-        "PPO Optimization Cycle in This Project",
-        start_size=46,
+        "Why PPO Is Used for This Control Problem",
+        start_size=44,
         min_size=32,
         bold=True,
         fill=(26, 40, 62),
     )
 
+    _rr(d, (90, 145, 1510, 255), 20, fill=(240, 246, 255), outline=(126, 149, 189), width=3)
+    _draw_text_in_box(
+        d,
+        (115, 165, 1480, 235),
+        "Continuous actions (phase/amplitude/duration) make actor-critic policy methods more natural than "
+        "discrete-action value-iteration methods.",
+        start_size=22,
+        min_size=15,
+        fill=(36, 55, 86),
+        spacing=8,
+    )
+
     steps = [
-        (90, 200, 500, 760, "Collect", "Roll out current policy\nunder sampled noise\nand store trajectories"),
-        (595, 200, 1005, 760, "Estimate", "Compute returns/advantages\nfrom reward signals\n(measurement-based)"),
-        (1100, 200, 1510, 760, "Update", "Run K clipped policy updates\nfor stability, then\nstart next epoch"),
+        (90, 300, 500, 760, "Actor", "Outputs a Gaussian action distribution for pulse parameters."),
+        (595, 300, 1005, 760, "Critic", "Estimates value baseline used to compute advantage."),
+        (1100, 300, 1510, 760, "Clipped update", "Improves policy while limiting how far each update can move from previous policy."),
     ]
     fills = [(232, 243, 255), (238, 255, 246), (255, 247, 236)]
     outlines = [(75, 126, 210), (54, 160, 108), (206, 136, 44)]
@@ -1120,10 +1403,10 @@ def build_ppo_image(path: Path) -> None:
         _rr(d, (x1, y1, x2, y2), 26, fill=fill, outline=outline, width=4)
         _draw_text_in_box(
             d,
-            (x1 + 26, y1 + 22, x2 - 26, y1 + 80),
+            (x1 + 26, y1 + 22, x2 - 26, y1 + 85),
             title,
             start_size=28,
-            min_size=21,
+            min_size=20,
             bold=True,
             fill=(31, 48, 74),
         )
@@ -1131,17 +1414,23 @@ def build_ppo_image(path: Path) -> None:
             d,
             (x1 + 26, y1 + 95, x2 - 26, y2 - 20),
             body,
-            start_size=23,
-            min_size=16,
+            start_size=21,
+            min_size=15,
             fill=(36, 56, 86),
-            spacing=10,
+            spacing=9,
         )
 
-    _arrow(d, (500, 470), (595, 470), color=(92, 116, 150), width=7)
-    _arrow(d, (1005, 470), (1100, 470), color=(92, 116, 150), width=7)
-
-    d.text((90, 130), "PPO performs stable iterative policy improvement using clipped objective updates.", font=f_txt, fill=(40, 60, 90))
-    d.text((90, 815), "In this workflow, multiple policy updates are applied each epoch to convert rollout data into better controls.", font=f_txt, fill=(40, 60, 90))
+    _arrow(d, (500, 530), (595, 530), color=(92, 116, 150), width=7)
+    _arrow(d, (1005, 530), (1100, 530), color=(92, 116, 150), width=7)
+    _draw_text_in_box(
+        d,
+        (90, 790, 1510, 858),
+        "Operationally: each epoch collects rollouts, then runs multiple PPO updates (policy updates per epoch).",
+        start_size=21,
+        min_size=15,
+        bold=True,
+        fill=(40, 60, 90),
+    )
 
     img.save(path)
 
@@ -1178,7 +1467,18 @@ def build_dynamics_vs_qutip_image(path: Path) -> None:
     )
 
     _arrow(d, (760, 460), (840, 460), color=(96, 118, 149), width=8)
-    d.text((700, 410), "for large rollout batches", font=_font(22, bold=True), fill=(64, 82, 112))
+    _rr(d, (700, 485, 900, 535), 16, fill=(250, 252, 255), outline=(167, 184, 210), width=2)
+    _draw_text_in_box(
+        d,
+        (708, 490, 892, 528),
+        "large rollout batches",
+        start_size=21,
+        min_size=16,
+        bold=True,
+        fill=(64, 82, 112),
+        align="center",
+        valign="middle",
+    )
 
     d.text((120, 810), "Practical implication: this toolchain improves parallel rollout throughput for RL training.", font=f_txt, fill=(40, 60, 90))
 
@@ -1190,50 +1490,77 @@ def build_hyperparam_image(metrics: Metrics, path: Path) -> None:
     w, hh = 1600, 900
     img = Image.new("RGB", (w, hh), (249, 252, 255))
     d = ImageDraw.Draw(img)
-    f_title = _font(44, bold=True)
-    f_head = _font(24, bold=True)
-    f_txt = _font(21)
+    _draw_text_in_box(
+        d,
+        (70, 30, 1530, 100),
+        "Why Different Targets Use Different Training Settings",
+        start_size=42,
+        min_size=31,
+        bold=True,
+        fill=(24, 39, 60),
+    )
 
-    d.text((70, 30), "Training Parameters by Target State", font=f_title, fill=(24, 39, 60))
-
-    _rr(d, (80, 120, 1520, 815), 24, fill=(255, 255, 255), outline=(120, 140, 172), width=3)
-
-    # table grid
-    x_cols = [110, 420, 780, 1140, 1490]
-    y_rows = [170, 245, 320, 395, 470, 555, 640, 725]
-    for x in x_cols:
-        d.line((x, y_rows[0], x, y_rows[-1]), fill=(205, 216, 233), width=2)
-    for y in y_rows:
-        d.line((x_cols[0], y, x_cols[-1], y), fill=(205, 216, 233), width=2)
-
-    d.text((128, 190), "Item", font=f_head, fill=(36, 55, 85))
-    d.text((460, 190), "Cat", font=f_head, fill=(36, 55, 85))
-    d.text((835, 190), "GKP", font=f_head, fill=(36, 55, 85))
-    d.text((1170, 190), "Binomial", font=f_head, fill=(36, 55, 85))
-
-    rows = [
-        ("NUM_EPOCHS", h.cat_num_epochs, h.gkp_num_epochs, h.bin_num_epochs),
-        ("Policy updates/epoch", h.cat_policy_updates, h.gkp_policy_updates, h.bin_policy_updates),
-        ("N_STEPS", h.cat_n_steps, h.gkp_n_steps, h.bin_n_steps),
-        ("N_SEGMENTS", h.cat_n_segments, h.gkp_n_segments, h.bin_n_segments),
-        ("Characteristic points", h.cat_stage_points, h.gkp_stage_points, h.bin_stage_points),
-        ("Stage boundaries", h.cat_stage_epochs, h.gkp_stage_epochs, h.bin_stage_epochs),
+    cards = [
+        (
+            (80, 145, 520, 815),
+            (232, 243, 255),
+            (79, 128, 214),
+            "Observed in runs",
+            "Cat: epochs=%s, policy updates=%s\n"
+            "GKP: epochs=%s, policy updates=%s\n"
+            "Binomial: epochs=%s, policy updates=%s\n\n"
+            "Same optimizer family, but best settings differ across targets."
+            % (
+                h.cat_num_epochs,
+                h.cat_policy_updates,
+                h.gkp_num_epochs,
+                h.gkp_policy_updates,
+                h.bin_num_epochs,
+                h.bin_policy_updates,
+            ),
+        ),
+        (
+            (580, 145, 1020, 815),
+            (236, 255, 244),
+            (57, 160, 108),
+            "Plausible explanation",
+            "Target structures differ in complexity.\n\n"
+            "GKP has periodic lattice-like structure and is highly phase sensitive.\n"
+            "Binomial is sparse in Fock space and can be sensitive to sampling strategy.\n"
+            "Therefore convergence speed and stability can require different epoch budgets.",
+        ),
+        (
+            (1080, 145, 1520, 815),
+            (255, 247, 236),
+            (206, 136, 44),
+            "What is still unknown",
+            "We do not yet have a strict causal attribution for each hyperparameter difference.\n\n"
+            "Current statement is empirical: these settings worked best in observed runs.\n"
+            "Further ablation is needed for definitive explanation.",
+        ),
     ]
 
-    y = 265
-    for label, c1, c2, c3 in rows:
-        d.text((128, y), label, font=f_txt, fill=(36, 55, 85))
-        d.text((460, y), str(c1), font=f_txt, fill=(36, 55, 85))
-        d.text((835, y), str(c2), font=f_txt, fill=(36, 55, 85))
-        d.text((1170, y), str(c3), font=f_txt, fill=(36, 55, 85))
-        y += 75
-
-    d.text(
-        (110, 760),
-        "All values come from the current experiment configurations used in this report.",
-        font=f_txt,
-        fill=(40, 60, 92),
-    )
+    for rect, fill, outline, title, body in cards:
+        x1, y1, x2, y2 = rect
+        _rr(d, rect, 24, fill=fill, outline=outline, width=4)
+        _draw_text_in_box(
+            d,
+            (x1 + 20, y1 + 20, x2 - 20, y1 + 92),
+            title,
+            start_size=28,
+            min_size=20,
+            bold=True,
+            fill=(30, 47, 73),
+        )
+        _draw_text_in_box(
+            d,
+            (x1 + 20, y1 + 96, x2 - 20, y2 - 20),
+            body,
+            start_size=20,
+            min_size=14,
+            fill=(35, 55, 84),
+            spacing=8,
+        )
 
     img.save(path)
 
@@ -1307,7 +1634,18 @@ def build_robust_modes_image(path: Path) -> None:
     )
 
     _arrow(d, (760, 470), (840, 470), color=(95, 117, 148), width=8)
-    d.text((770, 420), "same RL loop", font=_font(21, bold=True), fill=(62, 80, 109))
+    _rr(d, (730, 510, 870, 555), 14, fill=(250, 252, 255), outline=(167, 184, 210), width=2)
+    _draw_text_in_box(
+        d,
+        (736, 516, 864, 548),
+        "same RL loop",
+        start_size=21,
+        min_size=15,
+        bold=True,
+        fill=(62, 80, 109),
+        align="center",
+        valign="middle",
+    )
 
     d.text((110, 810), "Both modes optimize controls under noise; they differ in noise sampling model and objective aggregation.", font=f_txt, fill=(40, 60, 90))
 
@@ -1334,29 +1672,29 @@ def build_agent_io_image(path: Path) -> None:
             (90, 170, 730, 360),
             (232, 243, 255),
             (79, 128, 214),
-            "Policy input (observation)",
-            "Clock one-hot and constant context are fed to the policy network each step.",
+            "Context (policy input)",
+            "Information provided at each segment: step/clock encoding and fixed experiment context.",
         ),
         (
             (860, 170, 1510, 360),
             (236, 255, 244),
             (57, 160, 108),
-            "Policy output (actions)",
-            "Action dimensions include phi_r/phi_b and optional amp_r/amp_b plus duration_scale.",
+            "Action (policy output)",
+            "Continuous pulse parameters: phase controls (phi_r, phi_b), optional amplitudes, and duration scale.",
         ),
         (
             (90, 430, 730, 750),
             (255, 247, 236),
             (206, 136, 44),
-            "Reward signal from client side",
-            "After a full trajectory, characteristic-function mismatch is converted to scalar reward.",
+            "Reward",
+            "After full pulse execution, characteristic-function agreement with target is converted to a scalar reward.",
         ),
         (
             (860, 430, 1510, 750),
             (245, 239, 255),
             (153, 92, 186),
-            "Update style",
-            "PPO performs policy iteration (actor + value update from advantages), not value iteration on a discrete state table.",
+            "Advantage",
+            "Advantage measures how much better an action performed than critic expectation; PPO uses it to update policy.",
         ),
     ]
 
@@ -1390,9 +1728,10 @@ def build_agent_io_image(path: Path) -> None:
     _draw_text_in_box(
         d,
         (90, 780, 1510, 855),
-        "Interpretation: controls are updated through repeated policy-improvement cycles driven by measurement-derived rewards.",
+        "This is policy iteration in continuous control, not discrete value-table iteration.",
         start_size=22,
         min_size=15,
+        bold=True,
         fill=(40, 60, 90),
     )
 
@@ -1705,6 +2044,94 @@ def build_agenda_visual_image(path: Path) -> None:
     img.save(path)
 
 
+def build_scope_summary_image(path: Path) -> None:
+    w, h = 1600, 900
+    img = Image.new("RGB", (w, h), (248, 252, 255))
+    d = ImageDraw.Draw(img)
+    _draw_text_in_box(
+        d,
+        (70, 30, 1530, 100),
+        "Project Scope Summary",
+        start_size=44,
+        min_size=32,
+        bold=True,
+        fill=(24, 39, 60),
+    )
+
+    rows = [
+        ("Targets", "Cat, GKP, Binomial"),
+        ("Optimization", "Model-free RL with PPO policy updates"),
+        ("Reward", "Characteristic-function matching with stage-wise sampling"),
+        ("Robust extension", "Quasi-static and stochastic dephasing branches"),
+        ("Compute stack", "dynamiqs + GPU for parallel rollout throughput"),
+    ]
+    y = 170
+    for i, (k, v) in enumerate(rows):
+        fill = (234, 244, 255) if i % 2 == 0 else (242, 249, 255)
+        _rr(d, (120, y, 1480, y + 120), 16, fill=fill, outline=(170, 190, 215), width=2)
+        _draw_text_in_box(
+            d,
+            (150, y + 22, 500, y + 100),
+            k,
+            start_size=29,
+            min_size=21,
+            bold=True,
+            fill=(34, 54, 82),
+        )
+        _draw_text_in_box(
+            d,
+            (520, y + 22, 1450, y + 100),
+            v,
+            start_size=25,
+            min_size=17,
+            fill=(39, 60, 90),
+        )
+        y += 135
+    img.save(path)
+
+
+def _plot_nonrobust_history(metrics: Metrics, path: Path) -> None:
+    hist = metrics.nonrobust_history
+    fig, ax = plt.subplots(figsize=(11.2, 5.4))
+    if not hist:
+        ax.text(0.5, 0.5, "No non-robust history found", transform=ax.transAxes, ha="center", va="center")
+        ax.set_title("Binomial Non-Robust Runs")
+        fig.savefig(path, dpi=220, bbox_inches="tight")
+        plt.close(fig)
+        return
+    xs = np.arange(len(hist))
+    ys = np.array([v for _, v in hist], dtype=float)
+    labels = []
+    for k, _ in hist:
+        if k.startswith("checkpoint_"):
+            labels.append("checkpoint best")
+        else:
+            labels.append(k.replace("202602", "02-").replace("_", " "))
+    ax.plot(xs, ys, "o-", color="#2c6db7", lw=2.2)
+    best_idx = int(np.argmax(ys))
+    ax.scatter([best_idx], [ys[best_idx]], s=120, color="#d2862c", zorder=5, label="best non-robust")
+    if metrics.checkpoint_nonrobust_fid > 0:
+        ax.axhline(
+            metrics.checkpoint_nonrobust_fid,
+            color="#8a5fd0",
+            lw=1.8,
+            ls="--",
+            label="checkpoint best (no-noise)",
+        )
+    for i, y in enumerate(ys):
+        ax.text(i, y + 0.008, f"{y:.3f}", ha="center", fontsize=8)
+    ax.set_ylim(max(0.0, float(np.min(ys)) - 0.05), min(1.0, float(np.max(ys)) + 0.08))
+    ax.set_xticks(xs)
+    ax.set_xticklabels(labels, rotation=25, ha="right", fontsize=8)
+    ax.set_ylabel("Final fidelity")
+    ax.set_title("Binomial No-Noise / Non-Robust History (logs + checkpoint)")
+    ax.grid(alpha=0.25)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    fig.savefig(path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
 def _plot_penalty_sweep(entries: List[SweepEntry], title: str, path: Path, best_penalty: float) -> None:
     if not entries:
         plt.figure(figsize=(11, 6))
@@ -1879,32 +2306,140 @@ def _plot_penalty_mode_comparison(metrics: Metrics, path: Path) -> None:
 
 
 def _plot_binomial_progression(metrics: Metrics, path: Path) -> None:
-    labels = ["Pre-robust\ncheckpoint", "Best static\nrobust", "Best stochastic\nrobust"]
-    score = [metrics.bin_pre_score, metrics.best_static.score, metrics.best_stoch.score]
-    f_nom = [metrics.bin_pre_fid, metrics.best_static.f_nom, metrics.best_stoch.f_nom]
-    f_rob = [metrics.bin_pre_f_rob, metrics.best_static.f_rob, metrics.best_stoch.f_rob]
-
+    labels = ["Non-robust\nbest", "Static robust\nbest", "Stochastic robust\nbest"]
+    fids = [metrics.best_nonrobust_fid, metrics.best_static.f_nom, metrics.best_stoch.f_nom]
     x = np.arange(len(labels))
-    w = 0.25
 
     fig, ax = plt.subplots(figsize=(10.5, 6.2))
-    ax.bar(x - w, score, w, color="#486fb6", label="Score")
-    ax.bar(x, f_nom, w, color="#2f9b5c", label="Nominal fidelity")
-    ax.bar(x + w, f_rob, w, color="#d2862c", label="Robust fidelity")
+    ax.plot(x, fids, "o-", color="#2c6db7", lw=2.6, label="Final fidelity")
+    ax.scatter([1, 2], [metrics.best_static.f_rob, metrics.best_stoch.f_rob], color="#d2862c", s=90, zorder=5, label="Robust fidelity (robust runs)")
+
     ax.set_xticks(x)
     ax.set_xticklabels(labels)
     ax.set_ylim(0.72, 1.01)
-    ax.set_ylabel("Metric")
-    ax.set_title("Binomial Training Progression")
+    ax.set_ylabel("Fidelity")
+    ax.set_title("Binomial Progression: Non-Robust to Robust Branches")
     ax.grid(axis="y", alpha=0.25)
     ax.legend(loc="lower right")
 
-    for xi, vals in enumerate(zip(score, f_nom, f_rob)):
-        for off, v in zip([-w, 0.0, w], vals):
-            ax.text(xi + off, v + 0.006, f"{v:.3f}", ha="center", fontsize=9)
+    for xi, v in enumerate(fids):
+        ax.text(xi, v + 0.007, f"{v:.3f}", ha="center", fontsize=9)
+    ax.text(1, metrics.best_static.f_rob + 0.007, f"{metrics.best_static.f_rob:.3f}", ha="center", fontsize=9, color="#a86415")
+    ax.text(2, metrics.best_stoch.f_rob + 0.007, f"{metrics.best_stoch.f_rob:.3f}", ha="center", fontsize=9, color="#a86415")
 
     fig.savefig(path, dpi=220, bbox_inches="tight")
     plt.close(fig)
+
+
+def _plot_constant_amp_evidence(metrics: Metrics, path: Path) -> None:
+    labels = [
+        "Checkpoint best\n(non-robust)",
+        "Strict const-amp\nnon-robust",
+        "Strict const-amp\nrobust",
+    ]
+    vals = [
+        metrics.checkpoint_nonrobust_fid,
+        metrics.constamp_nonrobust.fidelity if metrics.constamp_nonrobust is not None else 0.0,
+        metrics.constamp_robust.fidelity if metrics.constamp_robust is not None else 0.0,
+    ]
+    cols = ["#2c6db7", "#5b87c8", "#d2862c"]
+    x = np.arange(len(labels))
+
+    fig, ax = plt.subplots(figsize=(10.2, 5.6))
+    bars = ax.bar(x, vals, color=cols)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylim(0.65, 1.01)
+    ax.set_ylabel("Final fidelity")
+    ax.set_title("Binomial Fidelity: Baseline vs Strict Constant-Amplitude Evidence")
+    ax.grid(axis="y", alpha=0.25)
+    for b, v in zip(bars, vals):
+        ax.text(b.get_x() + b.get_width() / 2, v + 0.008, f"{v:.6f}", ha="center", fontsize=9)
+
+    ax.text(
+        0.01,
+        0.02,
+        "Checkpoint pulse amp std: amp_r=%.4f, amp_b=%.4f (not strict constant amplitude)"
+        % (metrics.checkpoint_amp_r_std, metrics.checkpoint_amp_b_std),
+        transform=ax.transAxes,
+        fontsize=9,
+        color="#3d4f70",
+    )
+    fig.savefig(path, dpi=220, bbox_inches="tight")
+    plt.close(fig)
+
+
+def build_penalty_formula_image(path: Path) -> None:
+    w, h = 1600, 900
+    img = Image.new("RGB", (w, h), (249, 252, 255))
+    d = ImageDraw.Draw(img)
+    _draw_text_in_box(
+        d,
+        (70, 30, 1530, 100),
+        "Penalty Meaning in Robust Training",
+        start_size=44,
+        min_size=32,
+        bold=True,
+        fill=(24, 39, 60),
+    )
+    _rr(d, (90, 140, 1510, 320), 20, fill=(238, 245, 255), outline=(116, 141, 188), width=3)
+    _draw_text_in_box(
+        d,
+        (120, 180, 1480, 275),
+        "score = f_rob - p * max(0, floor - f_nom),   floor = 0.985",
+        start_size=36,
+        min_size=24,
+        bold=True,
+        align="center",
+        valign="middle",
+        fill=(28, 44, 70),
+    )
+
+    cards = [
+        (
+            (100, 380, 500, 790),
+            (232, 243, 255),
+            (79, 128, 214),
+            "f_nom",
+            "Nominal fidelity at zero detuning.\nIf this drops below floor, penalty activates.",
+        ),
+        (
+            (600, 380, 1000, 790),
+            (236, 255, 244),
+            (57, 160, 108),
+            "f_rob",
+            "Robust fidelity under detuning samples with configured weighting.",
+        ),
+        (
+            (1100, 380, 1500, 790),
+            (255, 247, 236),
+            (206, 136, 44),
+            "p (penalty weight)",
+            "Controls how strongly we penalize dropping below the nominal-fidelity floor.",
+        ),
+    ]
+    for rect, fill, outline, title, body in cards:
+        x1, y1, x2, y2 = rect
+        _rr(d, rect, 24, fill=fill, outline=outline, width=4)
+        _draw_text_in_box(
+            d,
+            (x1 + 20, y1 + 20, x2 - 20, y1 + 90),
+            title,
+            start_size=28,
+            min_size=20,
+            bold=True,
+            fill=(30, 47, 73),
+        )
+        _draw_text_in_box(
+            d,
+            (x1 + 20, y1 + 100, x2 - 20, y2 - 20),
+            body,
+            start_size=20,
+            min_size=14,
+            fill=(35, 55, 84),
+            spacing=8,
+        )
+    img.save(path)
 
 
 def _plot_eval_curve_single(run_dir: Path, path: Path, title: str) -> None:
@@ -1930,25 +2465,20 @@ def _plot_eval_curve_single(run_dir: Path, path: Path, title: str) -> None:
 def generate_assets(metrics: Metrics) -> None:
     ASSET_DIR.mkdir(parents=True, exist_ok=True)
 
-    build_hook_image(ASSET_DIR / "hook_question.png")
     build_applications_image(ASSET_DIR / "applications_motivation.png")
     build_motivation_image(ASSET_DIR / "motivation_encoding.png")
-    build_timeline_image(ASSET_DIR / "related_work_timeline.png")
-    build_literature_comparison_image(ASSET_DIR / "literature_comparison.png")
     build_rl_loop_image(ASSET_DIR / "rl_loop.png")
     build_agent_io_image(ASSET_DIR / "agent_io.png")
     build_epoch_timeline_image(ASSET_DIR / "epoch_timeline.png")
-    build_ppo_image(ASSET_DIR / "ppo_brief.png")
+    build_ppo_image(ASSET_DIR / "ppo_method.png")
     build_char_reward_mechanism_image(ASSET_DIR / "char_reward_mechanism.png")
     build_sampling_strategy_image(ASSET_DIR / "sampling_strategy.png")
     build_output_reading_guide_image(ASSET_DIR / "output_reading_guide.png")
-    build_agenda_visual_image(ASSET_DIR / "agenda_visual.png")
-    build_next_steps_image(ASSET_DIR / "next_steps_plan.png")
     build_conclusion_image(metrics, ASSET_DIR / "conclusion_summary.png")
-    build_reference_scope_image(ASSET_DIR / "reference_scope.png")
     build_hyperparam_image(metrics, ASSET_DIR / "hyperparam_compare.png")
     build_dynamics_vs_qutip_image(ASSET_DIR / "dynamics_vs_qutip.png")
     build_robust_modes_image(ASSET_DIR / "robust_modes.png")
+    build_penalty_formula_image(ASSET_DIR / "penalty_formula.png")
 
     _plot_penalty_sweep(
         metrics.static_entries,
@@ -1964,10 +2494,12 @@ def generate_assets(metrics: Metrics) -> None:
     )
     _plot_eval_curve_compare(metrics.best_static.run_dir, metrics.best_stoch.run_dir, ASSET_DIR / "binomial_eval_compare.png")
     _plot_eval_curve_single(metrics.bin_pre_run_dir, ASSET_DIR / "binomial_pre_eval_curve.png", "Binomial baseline checkpoint: eval fidelity")
+    _plot_nonrobust_history(metrics, ASSET_DIR / "binomial_nonrobust_history.png")
     _plot_state_dashboard(metrics, ASSET_DIR / "state_dashboard.png")
     _plot_static_vs_stoch(metrics, ASSET_DIR / "static_vs_stoch.png")
     _plot_penalty_mode_comparison(metrics, ASSET_DIR / "penalty_mode_compare.png")
     _plot_binomial_progression(metrics, ASSET_DIR / "binomial_progression.png")
+    _plot_constant_amp_evidence(metrics, ASSET_DIR / "binomial_constant_amp_evidence.png")
 
     missing = ASSET_DIR / "_missing.png"
     if not missing.exists():
@@ -2023,6 +2555,17 @@ def _add_footer(slide, page_num: int, ref_text: str = "") -> None:
     p2.font.color.rgb = RGBColor(95, 110, 135)
 
 
+def _add_inline_citation(slide, text: str, x: float = 9.1, y: float = 6.78, w: float = 3.6, h: float = 0.26) -> None:
+    box = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+    tf = box.text_frame
+    tf.clear()
+    p = tf.paragraphs[0]
+    p.text = text
+    p.font.size = Pt(10)
+    p.font.italic = True
+    p.font.color.rgb = RGBColor(100, 114, 136)
+
+
 def _add_picture(slide, image_path: Path, x: float, y: float, w: Optional[float] = None, h: Optional[float] = None) -> None:
     fallback = ASSET_DIR / "_missing.png"
     image_path = _safe_image(image_path, fallback)
@@ -2070,773 +2613,476 @@ def build_presentation(metrics: Metrics) -> int:
     bin_dephase_stoch = metrics.best_stoch.run_dir / "dephasing_compare.png"
     bin_gif = BIN_OUT / "characteristic_points_evolution.gif"
 
+    floor = 0.985
+    penalty_example: Optional[SweepEntry] = None
+    for e in sorted(metrics.static_entries + metrics.stoch_entries, key=lambda x: x.penalty):
+        if e.f_nom < floor and e.penalty > 0:
+            penalty_example = e
+            break
+    if penalty_example is None:
+        penalty_example = metrics.best_static
+    example_pen = penalty_example.penalty * max(0.0, floor - penalty_example.f_nom)
+
+    const_nonrob_tag = metrics.constamp_nonrobust.tag if metrics.constamp_nonrobust is not None else "not_found"
+    const_nonrob_f = metrics.constamp_nonrobust.fidelity if metrics.constamp_nonrobust is not None else 0.0
+    const_nonrob_path = (
+        str(metrics.constamp_nonrobust.path.relative_to(ROOT))
+        if metrics.constamp_nonrobust is not None
+        else "examples/trapped_ion_binomial/outputs/logs/<missing>"
+    )
+    const_rob_tag = metrics.constamp_robust.tag if metrics.constamp_robust is not None else "not_found"
+    const_rob_f = metrics.constamp_robust.fidelity if metrics.constamp_robust is not None else 0.0
+    const_rob_path = (
+        str(metrics.constamp_robust.path.relative_to(ROOT))
+        if metrics.constamp_robust is not None
+        else "examples/trapped_ion_binomial/outputs/logs/<missing>"
+    )
+
     # 1
     s = new_slide(
-        "Trapped-Ion Bosonic State Preparation via Model-Free Reinforcement Learning",
-        "Motivation, method, and dephasing-robust training results",
-        "Project overview",
+        "Trapped-Ion Bosonic State Preparation with Model-Free Reinforcement Learning",
+        "Sydney Nano weekly update | 3 March 2026",
+        "Project title",
     )
     _add_bullets(
         s,
-        0.7,
-        1.20,
-        5.6,
-        4.2,
+        0.75,
+        1.4,
+        8.0,
+        3.7,
         [
-            "Core question: can RL learn high-fidelity and noise-robust pulses from measurement feedback?",
-            "Targets: Cat, GKP, and Binomial bosonic states.",
-            "Today: explain RL loop clearly, then show visual evidence and robust-training outcomes.",
-            "The presentation focuses on physical interpretation of the optimization workflow.",
+            "Core question: can reinforcement learning discover pulse sequences that prepare high-fidelity bosonic states?",
+            "Targets in this project: Cat, GKP, and Binomial states.",
+            "Extension in this report: dephasing-robust training under quasi-static and stochastic noise.",
         ],
-        size=19,
+        size=20,
     )
-    _add_picture(s, ASSET_DIR / "hook_question.png", 6.55, 1.05, w=6.25)
+    _add_picture(s, ASSET_DIR / "state_dashboard.png", 8.35, 1.2, w=4.6, h=4.95)
     _add_bullets(
         s,
-        0.7,
-        5.5,
-        12.1,
-        1.0,
-        [
-            "Main structure: Motivation -> Setup/Method -> RL optimization loop -> Results -> Outlook.",
-        ],
-        size=17,
+        0.75,
+        5.45,
+        12.0,
+        0.9,
+        ["Talk flow: motivation -> method -> RL loop -> results -> robust extension -> conclusion."],
+        size=16,
     )
 
     # 2
-    s = new_slide("Agenda", footer_ref="Report structure")
-    _add_bullets(
-        s,
-        0.8,
-        1.25,
-        5.6,
-        5.2,
-        [
-            "1) Why bosonic state preparation matters (logical qubits, sensing, fundamental physics).",
-            "2) What model-free RL is doing in this project and why this is interesting.",
-            "3) How optimization works: control parameters -> quantum feedback -> policy update loop.",
-            "4) Characteristic-function reward and how sampling points are selected over training.",
-            "5) Results for Cat, GKP, and Binomial states (images + GIFs).",
-            "6) Dephasing-robust training: quasi-static and stochastic penalty sweeps.",
-            "7) Conclusions, open issues, and immediate next steps.",
-        ],
-        size=18,
-    )
-    _add_picture(s, ASSET_DIR / "agenda_visual.png", 6.5, 1.05, w=6.2)
-
-    # 3
     s = new_slide("Why This Problem Matters", footer_ref="Motivation")
     _add_bullets(
         s,
-        0.7,
-        1.12,
-        5.3,
-        4.7,
+        0.75,
+        1.05,
+        5.6,
+        4.9,
         [
-            "Preparing non-classical bosonic states is a foundational control task.",
-            "Better state preparation supports encoded qubits and practical logical operations.",
-            "The same control ideas are relevant for sensing and broader quantum-state engineering.",
-            "If we can automate pulse search with RL, we can scale exploration faster than manual tuning.",
+            "Bosonic states are useful for logical qubit encodings in oscillator modes.",
+            "They also matter for quantum sensing and non-classical-state engineering.",
+            "Good pulse design is hard because the control landscape is high-dimensional.",
+            "An automatic optimizer can accelerate discovery and reduce manual tuning cycles.",
         ],
-        size=19,
+        size=18,
     )
     _add_picture(s, ASSET_DIR / "applications_motivation.png", 6.35, 1.0, w=6.45)
-    _add_bullets(
-        s,
-        0.7,
-        6.0,
-        12.0,
-        0.8,
-        ["Motivation links directly to encoded bosonic qubits, sensing relevance, and control of non-classical dynamics."],
-        size=16,
-    )
+    _add_inline_citation(s, "Refs: Gottesman-Kitaev-Preskill 2001; Matsos et al., PRL 2024", x=8.2, y=6.78, w=4.8)
 
-    # 4
-    s = new_slide("Bosonic Encoding Intuition", footer_ref="Conceptual setup")
-    _add_bullets(
-        s,
-        0.7,
-        1.10,
-        5.2,
-        4.6,
-        [
-            "Conventional route: many physical qubits are combined for protection.",
-            "Bosonic route: one oscillator mode provides a richer controllable state space.",
-            "This project focuses on preparing bosonic target states with high accuracy and stability.",
-            "Motivation organization follows Sivak (RL control) and bosonic-code context from group discussions.",
-        ],
-        size=19,
-    )
-    _add_picture(s, ASSET_DIR / "motivation_encoding.png", 6.2, 1.0, w=6.6)
-    _add_bullets(
-        s,
-        0.7,
-        5.95,
-        12.0,
-        0.8,
-        ["This motivates focusing on pulse optimization for bosonic target-state preparation."],
-        size=16,
-    )
-
-    # 5
+    # 3
     s = new_slide("Why Model-Free RL Here?", footer_ref="Method motivation")
     _add_bullets(
         s,
-        0.8,
-        1.20,
-        7.0,
-        4.8,
-        [
-            "We want an optimizer that can learn directly from measured feedback signals.",
-            "Model-free RL does not require an analytic gradient of the full physical system.",
-            "The policy can iteratively improve by comparing outcomes from many trajectories.",
-            "This is a natural fit for closed-loop control where reward is computed from observables.",
-            "In short: RL acts as an adaptive pulse-search strategy under realistic feedback constraints.",
-        ],
-        size=18,
-    )
-    _add_picture(s, ASSET_DIR / "rl_loop_measurement_feedback.png", 7.85, 1.35, w=4.95)
-
-    # 6
-    s = new_slide("Related Works and Positioning", footer_ref="Context and contribution")
-    _add_bullets(
-        s,
-        0.7,
+        0.75,
         1.1,
-        5.1,
-        4.4,
+        5.8,
+        4.9,
         [
-            "Sivak et al. (PRX 2022): model-free RL can optimize quantum control directly from feedback.",
-            "Matsos et al. (PRL 2024): robust and deterministic trapped-ion bosonic-state preparation was demonstrated experimentally.",
-            "This project: apply and explain an RL workflow for trapped-ion Cat/GKP/Binomial preparation,",
-            "including dephasing-robust static and stochastic training branches.",
-        ],
-        size=17,
-    )
-    _add_picture(s, ASSET_DIR / "literature_comparison.png", 6.1, 1.0, w=6.6)
-
-    # 7
-    s = new_slide("Project Scope in One Slide", footer_ref="Project scope")
-    _add_bullets(
-        s,
-        0.8,
-        1.15,
-        6.8,
-        4.8,
-        [
-            "State families covered: Cat, GKP, and Binomial.",
-            "Optimization style: model-free RL with PPO policy updates.",
-            "Reward style: characteristic-function agreement, not full-state tomography in loop.",
-            "Robustness: dephasing-aware training with quasi-static and stochastic noise branches.",
-            "Compute path: dynamiqs/JAX simulation with GPU acceleration and parallel rollout strategy.",
+            "The optimization objective is obtained from measurement-like outputs, not analytic gradients.",
+            "Model-free RL can improve control policies directly from rollout feedback.",
+            "This makes it suitable for closed-loop settings where simulator/experiment returns rewards.",
+            "In this project, RL acts as the pulse-search engine over continuous control parameters.",
         ],
         size=18,
     )
-    _add_picture(s, ASSET_DIR / "state_family_overview.png", 7.7, 1.45, w=5.1)
+    _add_picture(s, ASSET_DIR / "motivation_encoding.png", 6.35, 1.0, w=6.45)
+    _add_inline_citation(s, "Ref: Sivak et al., PRX 2022", x=9.2, y=6.78, w=3.6)
 
-    # 8
-    s = new_slide("How the RL Control Loop Works", footer_ref="Optimization loop")
+    # 4
+    s = new_slide("Closed-Loop RL Control Workflow", footer_ref="Optimization loop")
     _add_bullets(
         s,
-        0.7,
-        1.02,
-        5.4,
-        3.9,
+        0.75,
+        1.1,
+        5.5,
+        4.5,
         [
-            "The policy proposes pulse parameters for each trajectory.",
-            "The simulator executes the pulse sequence and returns trajectory-level measurement reward.",
-            "Reward is derived from characteristic-function mismatch at sampled points.",
-            "PPO applies repeated policy updates, then the improved policy generates the next epoch.",
-            "This is an iterative policy-improvement loop under measurement-style feedback.",
+            "Policy proposes segmented pulse parameters.",
+            "Quantum simulation returns trajectory outcomes and reward signal.",
+            "Agent updates parameters and repeats over epochs.",
+            "The loop continues until fidelity and robustness targets are reached.",
         ],
-        size=17,
+        size=18,
     )
-    _add_picture(s, ASSET_DIR / "rl_loop.png", 6.45, 1.0, w=6.35)
-    _add_bullets(
-        s,
-        0.7,
-        5.35,
-        12.0,
-        0.8,
-        ["Loop interpretation: the control policy is updated from rollout returns, not from analytical gradients of the physics model."],
-        size=16,
-    )
+    _add_picture(s, ASSET_DIR / "rl_loop.png", 6.2, 1.0, w=6.6)
 
-    # 9
-    s = new_slide("Agent Inputs, Outputs, and Update Type", footer_ref="What is optimized each epoch")
+    # 5
+    s = new_slide("Key RL Terms Used in This Talk", footer_ref="Term definitions")
     _add_bullets(
         s,
-        0.7,
-        1.05,
-        5.1,
-        4.7,
+        0.75,
+        1.1,
+        5.5,
+        4.6,
         [
-            "Policy input: clock/step context and constant channel from the environment interface.",
-            "Policy output: segmented pulse parameters (phi_r, phi_b, optional amplitudes, duration_scale).",
-            "Client computes reward after full trajectory execution and sends scalar returns.",
-            "Update type: policy iteration (actor + value update via PPO), not tabular value iteration.",
-            "This distinction matters when explaining why PPO is used in this continuous-control setting.",
+            "Context: per-step information fed to policy (clock/step encoding and fixed settings).",
+            "Action: continuous pulse parameters output by policy.",
+            "Reward: scalar signal from characteristic-function agreement with target.",
+            "Advantage: how much better an action was than critic expectation.",
         ],
         size=17,
     )
     _add_picture(s, ASSET_DIR / "agent_io.png", 6.1, 1.0, w=6.7)
 
-    # 10
-    s = new_slide("Episode, Epoch, Policy Update", footer_ref="Training workflow")
-    _add_picture(s, ASSET_DIR / "epoch_timeline.png", 0.95, 0.95, w=11.4)
+    # 6
+    s = new_slide("Episode, Epoch, and Policy Updates", footer_ref="Training units")
+    _add_picture(s, ASSET_DIR / "epoch_timeline.png", 0.8, 0.95, w=11.8)
 
-    # 11
-    s = new_slide("Proximal Policy Optimization (PPO)", footer_ref="Policy optimization method")
+    # 7
+    s = new_slide("Why PPO Is the Optimizer", footer_ref="Policy optimization choice")
     _add_bullets(
         s,
-        0.7,
-        1.06,
-        5.0,
-        4.8,
+        0.75,
+        1.05,
+        5.3,
+        4.7,
         [
-            "PPO is an on-policy actor-critic method for stable policy iteration.",
-            "Each epoch: collect trajectories -> compute advantages with value network -> update actor and critic.",
-            "Clipped policy objective constrains update size and prevents destructive policy jumps.",
-            "In this project, policy-update count per epoch is a high-impact hyperparameter.",
-            "We therefore report policy-update settings explicitly for Cat, GKP, and Binomial targets.",
+            "PPO is on-policy actor-critic with clipped policy updates.",
+            "It is stable for iterative improvement in continuous action spaces.",
+            "This task uses continuous phase/amplitude/duration controls, so this is a natural fit.",
+            "This is policy iteration, not value iteration over discrete actions.",
         ],
         size=17,
     )
-    _add_picture(s, ASSET_DIR / "ppo_brief.png", 6.2, 1.0, w=6.5)
+    _add_picture(s, ASSET_DIR / "ppo_method.png", 6.05, 1.0, w=6.75)
+    _add_inline_citation(s, "Ref: Sivak et al., PRX 2022", x=9.2, y=6.78, w=3.6)
 
-    # 12
-    s = new_slide("Why Different States Need Different Hyperparameters", footer_ref="State-dependent optimization behavior")
+    # 8
+    s = new_slide("Why Hyperparameters Differ Across Target States", footer_ref="Evidence, hypothesis, unknown")
     _add_bullets(
         s,
-        0.7,
-        1.0,
-        5.0,
-        4.1,
+        0.75,
+        1.05,
+        5.2,
+        4.7,
         [
-            "Different target geometries create different optimization difficulty.",
-            "GKP needs longer training budget due to lattice-like structure constraints.",
-            "Binomial uses stage-wise characteristic sampling to improve stability.",
-            "Policy-update count and epoch budget matter more than minor entropy tuning here.",
+            "Observed fact: best settings differ for Cat, GKP, and Binomial training.",
+            "Likely reason: target structures create different optimization landscapes.",
+            "GKP appears more sensitive to phase alignment and needs larger training budget.",
+            "Strict causal attribution is still open; current statement is empirical.",
         ],
-        size=18,
+        size=17,
     )
-    _add_picture(s, ASSET_DIR / "hyperparam_compare.png", 6.1, 0.95, w=6.7)
+    _add_picture(s, ASSET_DIR / "hyperparam_compare.png", 6.1, 1.0, w=6.7)
 
-    # 12
-    s = new_slide("dynamiqs vs QuTiP and GPU Use", footer_ref="Simulation platform choice")
+    # 9
+    s = new_slide("Why dynamiqs + GPU for This Pipeline", footer_ref="Simulation throughput choice")
     _add_bullets(
         s,
-        0.7,
-        1.08,
-        5.0,
-        4.1,
+        0.75,
+        1.1,
+        5.3,
+        4.4,
         [
-            "Main reason for dynamiqs path: better parallel rollout throughput.",
-            "RL training repeatedly evaluates many trajectories, so batching matters.",
-            "GPU acceleration reduces wall-clock cost for iterative optimization.",
-            "Presentation-level message: this improves training practicality, not just implementation detail.",
+            "RL repeatedly evaluates many trajectories, so rollout throughput is critical.",
+            "dynamiqs/JAX supports vectorized batches and GPU acceleration.",
+            "Compared with small-scale workflow, this reduces wall-clock time per training cycle.",
+            "This is a training-enabler, not just an implementation detail.",
         ],
-        size=18,
+        size=17,
     )
     _add_picture(s, ASSET_DIR / "dynamics_vs_qutip.png", 6.1, 1.0, w=6.7)
 
-    # 13
-    s = new_slide("Characteristic-Function Reward", footer_ref="Reward definition")
+    # 10
+    s = new_slide("Characteristic-Function Reward", footer_ref="Reward design")
     _add_bullets(
         s,
-        0.7,
-        1.02,
-        5.0,
-        4.5,
+        0.75,
+        1.05,
+        5.2,
+        4.6,
         [
-            "Reward is computed from sampled characteristic-function points.",
-            "This acts like measurement-style feedback and avoids relying on full state information inside the loop.",
-            "It also provides visual diagnostics: target vs final characteristic maps are easy to compare.",
-            "This is where the RL loop connects directly to physics observables.",
+            "Reward compares sampled characteristic values between target and generated states.",
+            "This directly links optimization to physically meaningful observables.",
+            "The same representation is used to interpret final quality in result plots.",
+            "Training and interpretation therefore use a consistent language.",
         ],
-        size=18,
+        size=17,
     )
     _add_picture(s, ASSET_DIR / "char_reward_mechanism.png", 6.1, 1.0, w=6.7)
 
-    # 14
-    s = new_slide("Training Signal Scheduling", footer_ref="Stage-wise training setup")
+    # 11
+    s = new_slide("How Sample Points Expand During Training", footer_ref="Stage schedule + selection mechanism")
     _add_bullets(
         s,
-        0.7,
+        0.75,
         1.05,
-        5.0,
-        4.6,
+        5.2,
+        4.7,
         [
-            "Stage 1 uses a focused subset to provide strong initial learning signal.",
-            "Stage 2 expands sampled coverage to improve stability and exploration.",
-            "Stage 3 uses denser sampling for final high-fidelity refinement.",
-            "This schedule is applied consistently across training epochs.",
-            "Point-evolution GIFs are shown later in the results section.",
+            "Stage 1 uses top-k points by weighted target magnitude for strong initial supervision.",
+            "Later stages use radial bins, quota allocation, and weighted random draws in each bin.",
+            "The process combines deterministic structure and stochastic sampling.",
+            "This is why point evolution is guided, not purely random.",
         ],
-        size=18,
+        size=17,
     )
     _add_picture(s, ASSET_DIR / "sampling_strategy.png", 6.1, 1.0, w=6.7)
 
-    # 15
-    s = new_slide("How to Read Training Outputs", footer_ref="Interpreting result figures")
+    # 12
+    s = new_slide("How to Read the Result Figures", footer_ref="Result interpretation guide")
     _add_bullets(
         s,
-        0.7,
-        1.0,
+        0.75,
+        1.05,
         5.2,
-        4.8,
+        4.6,
         [
-            "Training curves show whether policy updates are producing consistent improvement.",
-            "Characteristic maps show structural agreement between target and final state.",
-            "Pulse panels show the learned control structure used to produce the final state.",
-            "Dephasing comparison curves show robustness tradeoff under detuning noise.",
-            "Together these plots provide a complete per-state result summary.",
+            "Fidelity curve: whether training improves over epochs.",
+            "Characteristic map: whether final state reproduces target structure.",
+            "Pulse plot: what control waveform was learned.",
+            "Dephasing curve: robustness tradeoff versus detuning.",
         ],
         size=17,
     )
     _add_picture(s, ASSET_DIR / "output_reading_guide.png", 6.1, 1.0, w=6.7)
+
+    # 13
+    s = new_slide("Cat State Result", footer_ref="Cat target")
+    _add_bullets(s, 0.75, 1.03, 12.0, 0.9, ["Final Cat fidelity: %.6f" % metrics.cat_fid], size=22)
+    _add_picture(s, cat_char, 0.7, 1.75, w=4.1)
+    _add_picture(s, cat_train, 4.95, 1.75, w=4.1)
+    _add_picture(s, cat_pulse, 9.2, 1.75, w=4.1)
+    _add_bullets(s, 0.75, 6.35, 12.0, 0.7, ["Target/final map, training trend, and learned pulse are shown side-by-side."], size=15)
+
+    # 14
+    s = new_slide("GKP State Result", footer_ref="GKP target")
+    _add_bullets(s, 0.75, 1.03, 12.0, 0.9, ["Final GKP fidelity: %.6f" % metrics.gkp_fid], size=22)
+    _add_picture(s, gkp_char, 0.7, 1.75, w=4.1)
+    _add_picture(s, gkp_train, 4.95, 1.75, w=4.1)
+    _add_picture(s, gkp_pulse, 9.2, 1.75, w=4.1)
     _add_bullets(
         s,
-        0.7,
-        6.15,
+        0.75,
+        6.35,
         12.0,
-        0.6,
-        ["These figure types are used in the next slides to tell the Cat/GKP/Binomial story consistently."],
+        0.7,
+        ["GKP needs alignment of many periodic peaks and is more sensitive to phase errors, so convergence is harder."],
         size=15,
     )
 
-    # 16
-    s = new_slide("Cat State Results", footer_ref="Cat target")
+    # 15
+    s = new_slide("Binomial Baseline and Constant-Amplitude Evidence", footer_ref="Baseline clarity before robust extension")
     _add_bullets(
         s,
-        0.7,
+        0.75,
         1.03,
-        12.0,
-        1.0,
-        ["Final cat fidelity: %.6f" % metrics.cat_fid],
-        size=22,
+        5.2,
+        5.0,
+        [
+            "Checkpoint baseline (before robust extension): %.6f." % metrics.checkpoint_nonrobust_fid,
+            "This baseline pulse is not strict constant-amplitude (checkpoint amp std: r=%.4f, b=%.4f)."
+            % (metrics.checkpoint_amp_r_std, metrics.checkpoint_amp_b_std),
+            "Strict constant-amplitude non-robust best: %s -> %.6f." % (const_nonrob_tag, const_nonrob_f),
+            "Strict constant-amplitude robust best: %s -> %.6f." % (const_rob_tag, const_rob_f),
+            "Difference mainly comes from whether final refinement allows amplitude optimization.",
+        ],
+        size=15,
     )
-    _add_picture(s, cat_char, 0.7, 1.8, w=4.1)
-    _add_picture(s, cat_train, 4.95, 1.8, w=4.1)
-    _add_picture(s, cat_pulse, 9.2, 1.8, w=4.1)
+    _add_picture(s, ASSET_DIR / "binomial_constant_amp_evidence.png", 5.95, 1.05, w=6.85)
     _add_bullets(
         s,
-        0.7,
-        6.35,
+        0.75,
+        6.12,
         12.0,
-        0.7,
-        ["Left: target vs final characteristic map | Middle: fidelity trend | Right: learned pulse structure"],
-        size=16,
+        0.95,
+        [
+            "Strict const-amp logs: %s | %s"
+            % (const_nonrob_path, const_rob_path),
+        ],
+        size=12,
     )
+
+    # 16
+    s = new_slide("Characteristic-Point Evolution (GIFs)", footer_ref="Cat / GKP / Binomial point evolution")
+    _add_bullets(
+        s,
+        0.75,
+        1.0,
+        12.0,
+        0.8,
+        ["Point distributions move from broad coverage to more informative regions as training progresses."],
+        size=19,
+    )
+    _add_picture(s, cat_gif, 0.55, 1.78, w=4.15)
+    _add_picture(s, gkp_gif, 4.65, 1.78, w=4.15)
+    _add_picture(s, bin_gif, 8.75, 1.78, w=4.15)
+    _add_bullets(s, 0.68, 6.38, 12.0, 0.6, ["Cat                     GKP                     Binomial"], size=16)
 
     # 17
-    s = new_slide("GKP State Results", footer_ref="GKP target")
+    s = new_slide("Dephasing-Robust Training Configuration", footer_ref="Quasi-static and stochastic branches")
     _add_bullets(
         s,
-        0.7,
-        1.03,
-        12.0,
-        1.0,
-        ["Final GKP fidelity: %.6f" % metrics.gkp_fid],
-        size=22,
-    )
-    _add_picture(s, gkp_char, 0.7, 1.8, w=4.1)
-    _add_picture(s, gkp_train, 4.95, 1.8, w=4.1)
-    _add_picture(s, gkp_pulse, 9.2, 1.8, w=4.1)
-    _add_bullets(
-        s,
-        0.7,
-        6.35,
-        12.0,
-        0.7,
-        ["GKP requires stronger structural matching, which motivates larger epoch budget."],
+        0.75,
+        1.02,
+        5.3,
+        4.7,
+        [
+            "Quasi-static branch: one detuning sample per trajectory (or grid across samples).",
+            "Stochastic branch: segment-wise random detuning with gamma_dt scaling.",
+            "Teacher-aligned physical scale: Omega_r = Omega_b = 2pi x 2000 Hz, with T_STEP adjusted consistently.",
+            "Both branches use the same PPO loop and same reward framework.",
+        ],
         size=16,
     )
+    _add_picture(s, ASSET_DIR / "robust_modes.png", 6.05, 1.0, w=6.75)
+    _add_inline_citation(s, "Ref: Matsos et al., PRL 2024", x=9.05, y=6.78, w=3.8)
 
     # 18
-    s = new_slide("Binomial Baseline Result (Before Robust Extension)", footer_ref="Binomial nominal checkpoint")
+    s = new_slide("What the Penalty Means in Robust Training", footer_ref="Robust score definition")
     _add_bullets(
         s,
-        0.7,
-        1.05,
-        12.0,
-        1.2,
+        0.75,
+        1.02,
+        5.1,
+        4.8,
         [
-            "Baseline checkpoint fidelity: %.6f | score: %.6f | robust fidelity under sweep: %.6f."
-            % (metrics.bin_pre_fid, metrics.bin_pre_score, metrics.bin_pre_f_rob),
-            "This baseline motivated the dephasing-robust branch and the subsequent penalty sweeps.",
+            "Implemented score: score = f_rob - p * max(0, floor - f_nom), with floor = 0.985.",
+            "If nominal fidelity stays above floor, penalty is zero.",
+            "If nominal fidelity drops below floor, score is reduced to prevent nominal collapse.",
+            "Example from sweep: p=%.2f, f_nom=%.4f gives penalty term %.6f."
+            % (penalty_example.penalty, penalty_example.f_nom, example_pen),
         ],
-        size=18,
-    )
-    _add_picture(s, bin_char_pre, 0.7, 2.1, w=4.1)
-    _add_picture(s, bin_pre_eval_curve, 4.95, 2.1, w=4.1)
-    _add_picture(s, bin_pre_dephase, 9.2, 2.1, w=4.1)
-    _add_bullets(
-        s,
-        0.7,
-        6.35,
-        12.0,
-        0.7,
-        ["Left: target vs final map | Middle: baseline evaluation trend | Right: baseline dephasing response"],
         size=16,
     )
+    _add_picture(s, ASSET_DIR / "penalty_formula.png", 6.15, 1.0, w=6.65)
 
     # 19
-    s = new_slide("Characteristic-Point Evolution (GIFs)", footer_ref="Sampling-point evolution across targets")
+    s = new_slide("Quasi-Static Penalty Sweep", footer_ref="Fine scan in static branch")
     _add_bullets(
         s,
-        0.7,
+        0.75,
+        1.0,
+        5.2,
+        4.6,
+        [
+            "Best static point: p=%.2f, score=%.6f." % (metrics.best_static.penalty, metrics.best_static.score),
+            "At this point: f_nom=%.6f, f_rob=%.6f." % (metrics.best_static.f_nom, metrics.best_static.f_rob),
+            "Mean robust gain over baseline in detuning sweep: %.6f." % metrics.static_stats.mean_gain,
+            "This branch currently gives the strongest robust average in our results.",
+        ],
+        size=16,
+    )
+    _add_picture(s, ASSET_DIR / "static_penalty_sweep.png", 6.05, 1.0, w=6.75)
+
+    # 20
+    s = new_slide("Stochastic Penalty Sweep", footer_ref="Combined stochastic scans")
+    _add_bullets(
+        s,
+        0.75,
+        1.0,
+        5.2,
+        4.6,
+        [
+            "Best stochastic point: p=%.2f, score=%.6f." % (metrics.best_stoch.penalty, metrics.best_stoch.score),
+            "At this point: f_nom=%.6f, f_rob=%.6f." % (metrics.best_stoch.f_nom, metrics.best_stoch.f_rob),
+            "Mean robust gain over baseline in detuning sweep: %.6f." % metrics.stoch_stats.mean_gain,
+            "This branch is valid but currently below static best in this run set.",
+        ],
+        size=16,
+    )
+    _add_picture(s, ASSET_DIR / "stoch_penalty_sweep.png", 6.05, 1.0, w=6.75)
+
+    # 21
+    s = new_slide("Static vs Stochastic: Combined View", footer_ref="Mode-level comparison")
+    _add_bullets(
+        s,
+        0.75,
+        1.0,
+        5.3,
+        4.4,
+        [
+            "Both branches improve dephasing robustness compared with baseline references.",
+            "Current best score remains static p=%.2f versus stochastic p=%.2f."
+            % (metrics.best_static.penalty, metrics.best_stoch.penalty),
+            "This comparison motivates targeted stochastic follow-up rather than abandoning stochastic mode.",
+            "Practical next step is local retuning around the best stochastic region.",
+        ],
+        size=16,
+    )
+    _add_picture(s, ASSET_DIR / "penalty_mode_compare.png", 5.9, 1.0, w=6.9)
+    _add_picture(s, ASSET_DIR / "binomial_eval_compare.png", 0.95, 4.85, w=4.35)
+
+    # 22
+    s = new_slide("Best Static and Best Stochastic Runs", footer_ref="Best-run detuning curves")
+    _add_bullets(
+        s,
+        0.75,
         1.0,
         12.0,
         0.8,
         [
-            "All targets show staged movement from broad exploration toward informative phase-space regions.",
+            "Left panel: best static run (p=%.2f). Right panel: best stochastic run (p=%.2f)."
+            % (metrics.best_static.penalty, metrics.best_stoch.penalty)
         ],
-        size=20,
+        size=18,
     )
-    _add_picture(s, cat_gif, 0.55, 1.80, w=4.15)
-    _add_picture(s, gkp_gif, 4.65, 1.80, w=4.15)
-    _add_picture(s, bin_gif, 8.75, 1.80, w=4.15)
+    _add_picture(s, bin_dephase_static, 0.7, 1.8, w=6.2)
+    _add_picture(s, bin_dephase_stoch, 6.45, 1.8, w=6.2)
     _add_bullets(
         s,
-        0.62,
-        6.40,
+        0.75,
+        6.25,
         12.0,
-        0.6,
-        ["Cat                     GKP                     Binomial"],
-        size=16,
-    )
-
-    # 20
-    s = new_slide("Robust-Training Configuration", footer_ref="Dephasing-robust setup")
-    _add_bullets(
-        s,
         0.7,
-        1.05,
-        5.1,
-        4.4,
         [
-            "Quasi-static branch: grid detuning samples + gaussian weighting.",
-            "Stochastic branch: segment-wise random detuning with gamma_dt scale.",
-            "Physical scale alignment enforced: Omega_r=Omega_b=2π×2000 Hz and T_STEP=1e-5 s.",
-            "Scale consistency rule: if Omega changes by factor k, T_STEP should change by 1/k.",
-            "Duration scaling action is enabled to let optimizer adapt effective pulse duration.",
+            "Static currently has better robustness average; stochastic retains a realistic random-noise formulation and remains under active tuning.",
         ],
-        size=17,
-    )
-    _add_picture(s, ASSET_DIR / "robust_modes.png", 6.2, 1.0, w=6.4)
-
-    # 21
-    s = new_slide("Quasi-Static Penalty Sweep (Fine Scan)", footer_ref="Points: p=0.1, 0.2, 0.3, 0.4")
-    _add_bullets(
-        s,
-        0.7,
-        1.02,
-        5.0,
-        3.8,
-        [
-            "Best quasi-static score occurs at p=%.2f." % metrics.best_static.penalty,
-            "At p=%.2f: score=%.6f, f_nom=%.6f, f_rob=%.6f." % (
-                metrics.best_static.penalty,
-                metrics.best_static.score,
-                metrics.best_static.f_nom,
-                metrics.best_static.f_rob,
-            ),
-            "This branch currently achieves stronger robust-fidelity average than the stochastic branch.",
-            "Mean gain over baseline in dephasing sweep: %.3f." % metrics.static_stats.mean_gain,
-        ],
-        size=17,
-    )
-    _add_picture(s, ASSET_DIR / "static_penalty_sweep.png", 6.1, 1.0, w=6.7)
-    _add_picture(s, bin_char_static, 6.2, 4.95, w=3.2)
-    _add_bullets(
-        s,
-        0.7,
-        5.2,
-        5.0,
-        1.3,
-        ["Static best improves average dephasing robustness while keeping high nominal fidelity."],
-        size=15,
-    )
-
-    # 22
-    s = new_slide("Stochastic Penalty Sweep (Combined)", footer_ref="Combined points include p=0.1/0.2/0.3/0.5/1.0")
-    _add_bullets(
-        s,
-        0.7,
-        1.02,
-        5.0,
-        3.8,
-        [
-            "Best stochastic score in current runs is at p=%.2f." % metrics.best_stoch.penalty,
-            "At p=%.2f: score=%.6f, f_nom=%.6f, f_rob=%.6f." % (
-                metrics.best_stoch.penalty,
-                metrics.best_stoch.score,
-                metrics.best_stoch.f_nom,
-                metrics.best_stoch.f_rob,
-            ),
-            "Stochastic branch is improving but still behind best quasi-static robust average.",
-            "Result suggests noise-model complexity currently needs more tuning/compute budget.",
-        ],
-        size=17,
-    )
-    _add_picture(s, ASSET_DIR / "stoch_penalty_sweep.png", 6.1, 1.0, w=6.7)
-    _add_picture(s, bin_char_stoch, 6.2, 4.95, w=3.2)
-    _add_bullets(
-        s,
-        0.7,
-        5.2,
-        5.0,
-        1.3,
-        ["Stochastic best currently trails static best but remains a valid path for realistic random-noise training."],
         size=15,
     )
 
     # 23
-    s = new_slide("Penalty Sweep Comparison Across Modes", footer_ref="All tested p points in static and stochastic branches")
+    s = new_slide("Across Targets: Fidelity Snapshot", footer_ref="Cat, GKP, Binomial status")
     _add_bullets(
         s,
-        0.7,
-        1.02,
-        5.1,
-        4.3,
-        [
-            "This figure aggregates all tested penalty points for both robust-training branches.",
-            "Quasi-static and stochastic curves can favor different p regions.",
-            "Current best points remain static p=%.2f and stochastic p=%.2f."
-            % (metrics.best_static.penalty, metrics.best_stoch.penalty),
-            "This is why we do coarse-to-fine sweeps instead of choosing one p value a priori.",
-        ],
-        size=17,
-    )
-    _add_picture(s, ASSET_DIR / "penalty_mode_compare.png", 5.9, 1.0, w=6.9)
-    _add_picture(s, ASSET_DIR / "binomial_eval_compare.png", 0.9, 4.75, w=4.4)
-    _add_bullets(
-        s,
-        6.05,
-        5.85,
-        6.7,
+        0.75,
         1.0,
-        ["Inset: epoch-wise evaluation trend for best static vs best stochastic run."],
-        size=15,
-    )
-
-    # 24
-    s = new_slide("Best Quasi-Static Run (p=%.2f)" % metrics.best_static.penalty, footer_ref="Dephasing robustness comparison against baseline")
-    _add_bullets(
-        s,
-        0.7,
-        1.05,
-        5.0,
-        4.4,
-        [
-            "Score: %.6f" % metrics.best_static.score,
-            "Nominal fidelity: %.6f" % metrics.best_static.f_nom,
-            "Robust fidelity: %.6f" % metrics.best_static.f_rob,
-            "Mean gain vs baseline: %.6f" % metrics.static_stats.mean_gain,
-            "Gain at zero detuning: %.6f" % metrics.static_stats.zero_gain,
-            "Interpretation: robust improvement is strong across most detuning range, with slight nominal tradeoff.",
-        ],
-        size=17,
-    )
-    _add_picture(s, bin_dephase_static, 6.1, 1.1, w=6.7)
-    _add_bullets(
-        s,
-        0.7,
-        6.1,
-        12.0,
-        0.6,
-        ["Current static best run remains the strongest robust candidate in this project snapshot."],
-        size=15,
-    )
-
-    # 25
-    s = new_slide("Best Stochastic Run (p=%.2f)" % metrics.best_stoch.penalty, footer_ref="Stochastic robust branch summary")
-    _add_bullets(
-        s,
-        0.7,
-        1.05,
-        5.0,
-        4.4,
-        [
-            "Score: %.6f" % metrics.best_stoch.score,
-            "Nominal fidelity: %.6f" % metrics.best_stoch.f_nom,
-            "Robust fidelity: %.6f" % metrics.best_stoch.f_rob,
-            "Mean gain vs baseline: %.6f" % metrics.stoch_stats.mean_gain,
-            "Gain at zero detuning: %.6f" % metrics.stoch_stats.zero_gain,
-            "Interpretation: robust behavior is improved, but current setting still leaves room to reduce zero-noise gap.",
-        ],
-        size=17,
-    )
-    _add_picture(s, bin_dephase_stoch, 6.1, 1.1, w=6.7)
-    _add_bullets(
-        s,
-        0.7,
-        6.1,
-        12.0,
-        0.6,
-        ["Stochastic robust training is promising and provides a clear direction for targeted follow-up runs."],
-        size=15,
-    )
-
-    # 26
-    s = new_slide("Static vs Stochastic: Current Best Comparison", footer_ref="Best-run metric comparison")
-    _add_bullets(
-        s,
-        0.7,
-        1.02,
-        5.0,
-        3.8,
-        [
-            "Static best currently has higher robust average and better overall score.",
-            "Stochastic best remains valuable because it matches the intended random-noise training formulation.",
-            "Difference does not mean stochastic is wrong; it indicates more tuning/compute may be needed.",
-            "This comparison guides the next experimental schedule.",
-        ],
-        size=17,
-    )
-    _add_picture(s, ASSET_DIR / "static_vs_stoch.png", 6.1, 1.0, w=6.8)
-    _add_bullets(
-        s,
-        0.7,
-        5.75,
         12.0,
         0.8,
-        ["Comparison highlights where stochastic training still needs improvement (especially near zero detuning)."],
-        size=15,
-    )
-
-    # 27
-    s = new_slide("Across Main Targets: Fidelity Snapshot", footer_ref="Cat/GKP and binomial robust candidates")
-    _add_bullets(
-        s,
-        0.7,
-        1.02,
-        12.0,
-        1.0,
         [
-            "Cat and GKP already reach high nominal fidelity; binomial robustness is the main active optimization front.",
+            "Cat and GKP nominal fidelities are strong; binomial robust optimization is the current focus.",
         ],
         size=18,
     )
     _add_picture(s, ASSET_DIR / "state_dashboard.png", 1.95, 1.45, w=9.4)
-    _add_bullets(
-        s,
-        0.9,
-        6.35,
-        11.5,
-        0.6,
-        ["Cat and GKP are high-fidelity nominal targets; binomial is the primary robust-training benchmark."],
-        size=15,
-    )
 
-    # 28
-    s = new_slide("What We Learned So Far", footer_ref="Current conclusions")
+    # 24
+    s = new_slide("Conclusion", footer_ref="Final conclusion")
     _add_bullets(
         s,
         0.8,
         1.15,
-        6.9,
+        7.2,
         4.8,
         [
-            "Model-free RL can produce high-quality control pulses for multiple bosonic targets.",
-            "Characteristic-function reward plus staged point sampling is practical and interpretable.",
-            "Policy-update count and state-specific training budget strongly influence convergence quality.",
-            "Quasi-static robust branch currently outperforms stochastic branch on average robust metrics.",
-            "Stochastic branch is still meaningful and likely benefits from further targeted hyperparameter tuning.",
+            "Model-free RL provides a clear closed-loop workflow for trapped-ion bosonic state preparation.",
+            "The method works across Cat/GKP/Binomial and supports dephasing-robust extensions.",
+            "Current robust best points: static p=%.2f, stochastic p=%.2f."
+            % (metrics.best_static.penalty, metrics.best_stoch.penalty),
+            "Key open task: improve stochastic branch while preserving nominal fidelity floor.",
+            "This concludes the report.",
         ],
         size=18,
     )
-    _add_picture(s, ASSET_DIR / "binomial_progression.png", 7.75, 1.55, w=5.0)
-
-    # 29
-    s = new_slide("Immediate Next Steps", footer_ref="Outlook")
-    _add_bullets(
-        s,
-        0.8,
-        1.15,
-        7.0,
-        4.8,
-        [
-            "Refine stochastic branch near p≈0.1 with controlled extra compute budget.",
-            "Tune duration-related penalties to reduce zero-detuning nominal gap.",
-            "Continue improving GKP with targeted long-horizon training settings.",
-            "Prepare final speaking script with concept-first explanation and image-led storytelling.",
-            "Keep citations tied to discussed content (Sivak PRX, Matsos PRL, related trapped-ion work).",
-        ],
-        size=18,
-    )
-    _add_picture(s, ASSET_DIR / "next_steps_plan.png", 7.8, 1.35, w=4.9)
-
-    # 30
-    s = new_slide("Conclusion", footer_ref="Summary")
-    _add_bullets(
-        s,
-        0.8,
-        1.2,
-        7.0,
-        4.6,
-        [
-            "This project demonstrates a clear and explainable RL control workflow for bosonic state preparation.",
-            "The method works across Cat/GKP/Binomial targets and supports robust-training extensions.",
-            "Current robust best points: quasi-static p=%.2f, stochastic p=%.2f." % (metrics.best_static.penalty, metrics.best_stoch.penalty),
-            "The report now presents a complete story: motivation -> method -> results -> outlook.",
-        ],
-        size=18,
-    )
-    _add_picture(s, ASSET_DIR / "conclusion_summary.png", 7.8, 1.35, w=4.9)
-
-    # 31
-    s = new_slide("References", footer_ref="Only references cited in talk")
-    _add_bullets(
-        s,
-        0.7,
-        1.2,
-        7.0,
-        4.8,
-        [
-            "D. Gottesman, A. Kitaev, J. Preskill, Phys. Rev. A 64, 012310 (2001).",
-            "V. V. Sivak et al., Model-Free Quantum Control with Reinforcement Learning, Phys. Rev. X 12, 011059 (2022).",
-            "V. G. Matsos et al., Robust and Deterministic Preparation of Bosonic Logical States in a Trapped Ion, Phys. Rev. Lett. 133, 050602 (2024).",
-            "Internal trapped-ion RL project outputs and dephasing-robust sweep logs (2026).",
-            "Sydney Nano / Quantum Control Lab discussions and meeting guidance.",
-        ],
-        size=17,
-    )
-    _add_picture(s, ASSET_DIR / "reference_scope.png", 7.8, 1.35, w=4.9)
-
-    # 32
-    s = new_slide("Appendix: Presentation Flow Checklist", footer_ref="Appendix")
-    _add_bullets(
-        s,
-        0.8,
-        1.2,
-        6.1,
-        5.2,
-        [
-            "Define episode, epoch, and policy update before showing any result plots.",
-            "When showing GIFs, explain that point concentration indicates increased sampling focus.",
-            "For robust sweeps, report score, nominal fidelity, robust fidelity, and zero-detuning behavior.",
-            "Separate method validity from current performance limits when discussing stochastic results.",
-            "Finish with one clear impact statement and immediate follow-up plan.",
-        ],
-        size=17,
-    )
-    _add_bullets(
-        s,
-        7.0,
-        1.55,
-        5.3,
-        4.8,
-        [
-            "Suggested transition cues:",
-            "Motivation -> 'what problem is worth solving and why now?'",
-            "Method -> 'how the RL loop changes pulse parameters over epochs'",
-            "Results -> 'what the plots/GIFs prove and what remains open'",
-            "Outlook -> 'specific next runs and expected impact'",
-        ],
-        size=16,
-    )
+    _add_picture(s, ASSET_DIR / "conclusion_summary.png", 7.85, 1.35, w=4.8)
 
     prs.save(str(PPT_PATH_DETAILED))
     shutil.copy2(PPT_PATH_DETAILED, PPT_PATH_ALIAS)
